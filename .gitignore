@@ -22,3 +22,7 @@ venv/
 # Temporary / Scratch Files
 *.tmp
 *.bak
+
+# Private Interview Preparation Collateral
+preparation.html
+*.bat
