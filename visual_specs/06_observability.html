@@ -1,0 +1,174 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>A.X.I.O.M — 06 Production Observability & RAG Triad</title>
+<style>
+  :root {
+    --bg: #0b0f19;
+    --surface: #111827;
+    --surface-card: #1f2937;
+    --border: #374151;
+    --text: #f9fafb;
+    --text-dim: #9ca3af;
+    --accent-green: #10b981;
+    --accent-cyan: #06b6d4;
+    --accent-amber: #f59e0b;
+    --accent-red: #ef4444;
+    --accent-purple: #8b5cf6;
+    --accent: var(--accent-green);
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background-color: var(--bg); color: var(--text); font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; line-height: 1.6; padding: 2rem 1rem; }
+  .container { max-width: 1000px; margin: 0 auto; }
+  h1 { font-size: 2.2rem; margin-bottom: 0.5rem; }
+  .subtitle { color: var(--text-dim); font-size: 1.1rem; margin-bottom: 2rem; }
+  .pitch-box { background-color: var(--surface-card); padding: 1.5rem; border-radius: 8px; border: 1px solid var(--border); border-left: 4px solid var(--accent); margin-bottom: 2rem; font-size: 1.05rem; }
+  h2 { font-size: 1.5rem; margin-top: 2.5rem; margin-bottom: 1rem; padding-left: 0.75rem; border-left: 4px solid var(--accent); }
+  h3 { font-size: 1.2rem; margin-top: 1.5rem; margin-bottom: 0.75rem; color: var(--text); }
+  .surface-card { background-color: var(--surface-card); border: 1px solid var(--border); border-radius: 8px; padding: 1.5rem; margin-bottom: 1.5rem; }
+  .badge { display: inline-block; padding: 0.25rem 0.5rem; border-radius: 4px; font-size: 0.8rem; font-weight: 600; background-color: rgba(16, 185, 129, 0.1); color: var(--accent); margin-right: 0.5rem; margin-bottom: 0.5rem; }
+  pre { background-color: var(--surface); border: 1px solid var(--border); padding: 1rem; border-radius: 6px; overflow-x: auto; font-family: 'Courier New', Courier, monospace; font-size: 0.9rem; margin-bottom: 1.5rem; color: var(--text-dim); }
+  code { font-family: 'Courier New', Courier, monospace; color: var(--accent); }
+  ul, ol { margin-left: 1.5rem; margin-bottom: 1rem; }
+  li { margin-bottom: 0.5rem; }
+  strong { color: var(--text); }
+</style>
+</head>
+<body>
+  <div class="container">
+    <h1>A.X.I.O.M — 06 Production Observability & RAG Triad</h1>
+    <div class="subtitle">RAG Triad Metrics · OpenTelemetry Tracing · Safe Failure Contract · Verbatim Citation Mapping</div>
+
+    <div class="pitch-box">
+      <strong>30-Second Pitch:</strong> In production RAG systems, a confident wrong answer is more dangerous than no answer. A.X.I.O.M. enforces a zero-hallucination guarantee through 3 mechanisms: the <strong>RAG Triad</strong> (mathematical quality scoring on every response), the <strong>Safe Failure Contract</strong> (blocking LLM generation when context is insufficient), and the <strong>Verbatim Citation Mapping Engine</strong> (every claim tagged with <code>[Ref X]</code> pointing to an exact source page, audio timestamp, or video frame). All 3 mechanisms run through an OpenTelemetry distributed tracing layer that logs per-step latency, token cost, and quality scores to an AI Ops dashboard — without adding any synchronous latency to the user response.
+    </div>
+
+    <h2>The RAG Triad (3 Quality Metrics)</h2>
+    <div class="surface-card">
+      <h3>Metric 1 — Context Relevance (Retrieval Precision)</h3>
+      <ul>
+        <li><strong>Question:</strong> Did Qdrant retrieve chunks that actually answer the user's query?</li>
+        <li><strong>Formula:</strong> <code>Context_Relevance = Relevant_Chunks_Retrieved / Total_Chunks_Retrieved</code></li>
+        <li><strong>Target:</strong> &gt; 0.70 | <strong>Safe Failure Threshold:</strong> &lt; 0.40</li>
+        <li><strong>Failure Mode:</strong> Returns irrelevant document sections (Qdrant tuning issue)</li>
+      </ul>
+
+      <h3>Metric 2 — Groundedness / Faithfulness (Hallucination Prevention)</h3>
+      <ul>
+        <li><strong>Question:</strong> Is every claim in the generated answer supported by verbatim text in the retrieved context?</li>
+        <li><strong>Formula:</strong> <code>Groundedness = LLM_Claims_Backed_by_Context / Total_LLM_Claims</code></li>
+        <li><strong>Target:</strong> 1.00 (100% — zero tolerance for unbacked claims)</li>
+        <li><strong>Failure Mode:</strong> LLM invents specific numbers, dates, or names not in context</li>
+      </ul>
+
+      <h3>Metric 3 — Answer Relevance (Intent Alignment)</h3>
+      <ul>
+        <li><strong>Question:</strong> Does the generated answer directly address the user's original intent?</li>
+        <li><strong>Formula:</strong> <code>Answer_Relevance = Cosine_Similarity(Query_Vector, Answer_Vector)</code></li>
+        <li><strong>Target:</strong> &gt;= 0.85</li>
+        <li><strong>Failure Mode:</strong> Answer is grounded but drifts off-topic from the original question</li>
+      </ul>
+    </div>
+
+    <h2>OpenTelemetry Distributed Trace Structure</h2>
+    <div class="surface-card">
+<pre>
+Trace_ID: 'TRC_4f6eea4f'
+  │
+  ├── Span 1: gateway_auth           duration: 0.3ms
+  ├── Span 2: input_guardrails        duration: 3.1ms
+  ├── Span 3: redis_cache_check       duration: 12.4ms  → CACHE_MISS
+  ├── Span 4: qdrant_prefilter        duration: 18.7ms
+  ├── Span 5: modality_router         duration: 0.5ms   → TEXT
+  ├── Span 6: matryoshka_embed        duration: 45.2ms
+  ├── Span 7: rrf_hybrid_search       duration: 38.1ms
+  ├── Span 8: cross_encoder_rerank    duration: 82.3ms
+  ├── Span 9: gemini_flash_inference  duration: 612.0ms ← BOTTLENECK
+  ├── Span 10: output_guardrails      duration: 22.4ms
+  ├── Span 11: citation_mapping       duration: 8.2ms
+  └── Span 12: redis_cache_write      duration: 4.1ms
+
+Total: 847.3ms | RAG Triad: CR=0.92, G=1.00, AR=0.91 | Cost: $0.0014
+</pre>
+    </div>
+
+    <h2>Safe Failure Contract</h2>
+    <div class="surface-card">
+      <h3>The 3 Safe Failure Triggers</h3>
+      <ol>
+        <li>
+          <strong>Context Relevance &lt; 0.40:</strong>
+          <ul>
+            <li><strong>Action:</strong> Block LLM call entirely</li>
+            <li><strong>Response:</strong> 'I cannot find sufficient verified information to answer this safely. Please contact [department contact] or [IT ticket URL].'</li>
+            <li><strong>Telemetry:</strong> Log query to 'Knowledge Gap Dashboard' for documentation team action</li>
+          </ul>
+        </li>
+        <li>
+          <strong>Groundedness &lt; 1.00:</strong>
+          <ul>
+            <li><strong>Action:</strong> Strip unbacked claims from response before serving</li>
+            <li><strong>Response:</strong> Partial answer with banner: 'Some claims could not be verified against source documents and have been removed.'</li>
+            <li><strong>Telemetry:</strong> Flag specific unbacked claim text for LLM temperature tuning</li>
+          </ul>
+        </li>
+        <li>
+          <strong>Circuit Breaker OPEN (LLM API Down):</strong>
+          <ul>
+            <li><strong>Action:</strong> Route to fallback model (Flash → Ollama)</li>
+            <li><strong>Response:</strong> Answer generated by fallback model with banner: 'Response generated by local fallback model.'</li>
+            <li><strong>Never returns HTTP 500 to user</strong></li>
+          </ul>
+        </li>
+      </ol>
+
+      <h3>Knowledge Gap Detection Loop</h3>
+      <ul>
+        <li>Every Safe Failure (Context Relevance &lt; 0.40) is logged to AI Ops dashboard</li>
+        <li>Documentation team reviews weekly: 'Top 10 unanswerable queries this week'</li>
+        <li>Each entry represents a missing document that should be uploaded to A.X.I.O.M.</li>
+      </ul>
+    </div>
+
+    <h2>Verbatim Citation Mapping Engine</h2>
+    <div class="surface-card">
+      <h3>Structured Output JSON Format</h3>
+<pre>
+{
+  "query": "What is the parental leave policy?",
+  "generated_answer": "Full-time employees receive 12 weeks of paid parental leave [Ref 1]. Leave must be taken within 12 months of birth [Ref 2].",
+  "groundedness_score": 1.0,
+  "references": [
+    {
+      "ref_id": "[Ref 1]",
+      "modality": "text",
+      "document_name": "Health_Benefits_2026_v2.pdf",
+      "page_number": 14,
+      "verbatim_quote": "Full-time employees receive 12 weeks of fully paid parental leave following 12 months of continuous service.",
+      "confidence": 0.98
+    },
+    {
+      "ref_id": "[Ref 2]",
+      "modality": "text",
+      "document_name": "Health_Benefits_2026_v2.pdf",
+      "page_number": 15,
+      "verbatim_quote": "Parental leave must be utilized within 12 months of the child's birth or adoption.",
+      "confidence": 0.95
+    }
+  ]
+}
+</pre>
+
+      <h3>Multi-Modal Citation References (Image, Audio, Video)</h3>
+      <ul>
+        <li><span class="badge">Image</span> ref points to → page_number: 7, keyframe_image: 'frame_0412.jpg'</li>
+        <li><span class="badge">Audio</span> ref points to → audio_file: 'meeting_rec.wav', start_time: '04:12', end_time: '04:45'</li>
+        <li><span class="badge">Video</span> ref points to → video_file: 'training.mp4', timestamp: '12:42', keyframe: 'kf_1242.jpg'</li>
+      </ul>
+    </div>
+
+  </div>
+</body>
+</html>

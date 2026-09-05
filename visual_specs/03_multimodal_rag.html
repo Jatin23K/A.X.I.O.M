@@ -1,0 +1,289 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>A.X.I.O.M — 03 Multi-Modal RAG Engine</title>
+<style>
+:root {
+  --bg: #0b0f19;
+  --surface: #111827;
+  --surface-card: #1f2937;
+  --border: #374151;
+  --text: #f9fafb;
+  --text-dim: #9ca3af;
+  --accent-green: #10b981;
+  --accent-cyan: #06b6d4;
+  --accent-amber: #f59e0b;
+  --accent-red: #ef4444;
+  --accent-purple: #8b5cf6;
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { background-color: var(--bg); color: var(--text); font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; line-height: 1.6; padding: 2rem 1rem; }
+.container { max-width: 1000px; margin: 0 auto; }
+h1 { margin-bottom: 0.5rem; color: var(--text); }
+h2 {
+    margin-top: 2rem;
+    margin-bottom: 1rem;
+    padding-left: 0.75rem;
+    border-left: 4px solid var(--accent-purple);
+    color: var(--text);
+}
+.subtitle { color: var(--text-dim); margin-bottom: 2rem; font-size: 1.1rem; }
+.pitch-box {
+    background-color: var(--surface);
+    border: 1px solid var(--accent-purple);
+    border-left: 6px solid var(--accent-purple);
+    padding: 1.5rem;
+    border-radius: 4px;
+    margin-bottom: 2rem;
+    font-weight: 500;
+}
+.card {
+    background-color: var(--surface-card);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 1.5rem;
+    margin-bottom: 1.5rem;
+}
+pre.ascii {
+    background-color: #000;
+    color: var(--accent-green);
+    padding: 1rem;
+    border-radius: 6px;
+    overflow-x: auto;
+    font-family: 'Courier New', Courier, monospace;
+    line-height: 1.2;
+    margin-bottom: 1rem;
+}
+pre.json {
+    background-color: #000;
+    color: var(--accent-cyan);
+    padding: 1rem;
+    border-radius: 6px;
+    overflow-x: auto;
+    font-family: 'Courier New', Courier, monospace;
+    margin-bottom: 1rem;
+}
+table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-bottom: 1rem;
+    background-color: var(--surface-card);
+}
+th, td {
+    padding: 1rem;
+    text-align: left;
+    border-bottom: 1px solid var(--border);
+}
+th {
+    background-color: var(--surface);
+    color: var(--accent-purple);
+}
+.badge {
+    display: inline-block;
+    padding: 0.25em 0.6em;
+    font-size: 0.85em;
+    font-weight: 700;
+    border-radius: 4px;
+    background-color: rgba(139, 92, 246, 0.2);
+    color: var(--accent-purple);
+    margin-bottom: 0.5rem;
+}
+ul { margin-left: 1.5rem; margin-bottom: 1rem; }
+li { margin-bottom: 0.5rem; color: var(--text-dim); }
+p { margin-bottom: 1rem; color: var(--text-dim); }
+strong { color: var(--text); }
+</style>
+</head>
+<body>
+<div class="container">
+    <h1>A.X.I.O.M — 03 Multi-Modal RAG Engine</h1>
+    <div class="subtitle">ColPali Visual RAG · Dual-Path Audio RAG · 3-Stream Video RAG</div>
+
+    <div class="pitch-box">
+        <h3>Section 0: 30-Second Pitch</h3>
+        <p style="color: var(--text); margin-top: 0.5rem; margin-bottom: 0;">A.X.I.O.M. handles 4 data modalities — Text, Image, Audio, and Video — each with a dedicated ingestion strategy, vector schema, and retrieval algorithm. Text uses Matryoshka 2-vector hybrid search (see Module 02). Images use ColPali ViT spatial patch multi-vector matrices with MaxSim Late Interaction — eliminating the need for a Cross-Encoder Reranker. Audio uses a Dual-Path pipeline combining WhisperX speech transcription with CLAP acoustic fingerprinting. Video uses a 3-Stream synchronized temporal pipeline. All 4 modalities are stored in a single Qdrant database using Named Vector Fields.</p>
+    </div>
+
+    <h2>Section 1: Modality Routing Architecture</h2>
+    <div class="card">
+<pre class="ascii">
+INPUT QUERY
+  │
+  ▼
+[ MODALITY ROUTER ]
+  │
+  ├──► TEXT QUERY ──────────► Matryoshka Embedding → BM25+HNSW RRF → Cross-Encoder → LLM
+  ├──► IMAGE QUERY ─────────► CLIP Query Vector → ColPali MaxSim → VLM
+  ├──► AUDIO QUERY (Text) ──► WhisperX Embed → V_speech + V_acoustic → LLM
+  ├──► AUDIO QUERY (Sound) ──► CLAP Embed → V_acoustic search → LLM
+  └──► VIDEO QUERY ──────────► CLIP+WhisperX+CLAP → 3-Stream RRF → VLM
+</pre>
+    </div>
+
+    <h2>Section 2: Image RAG — ColPali Patch-Based Multi-Vector Retrieval</h2>
+    <div class="card">
+        <span class="badge">Building Phase</span>
+        <ul>
+            <li><strong>Zero OCR / Zero Text Parsing.</strong> Each PDF page is rendered as a raw 1024×1024 RGB image tensor.</li>
+            <li><strong>Vision Transformer (ViT / PaliGemma)</strong> splits each page into a 32×32 grid = 1,024 spatial patches.</li>
+            <li><strong>Each patch</strong> is assigned its own embedding vector. One page = Multi-Vector Matrix of 1,024 patch vectors.</li>
+            <li><strong>Stored in Qdrant</strong> as a ColBERT-style multi-vector payload.</li>
+        </ul>
+
+        <span class="badge">Retrieval Phase (MaxSim Late Interaction)</span>
+        <ul>
+            <li>User query is tokenized into query token vectors.</li>
+            <li>For each query token, find the Maximum Cosine Similarity patch on each page.</li>
+            <li>Page Score formula: <code>Score = Σ(q∈Q) max(p∈P) (v_q · v_p)</code></li>
+            <li>Returns Top-N highest scoring pages to VLM.</li>
+        </ul>
+
+        <span class="badge">Why No Re-Ranker is Needed</span>
+        <ul>
+            <li>MaxSim already performs fine-grained token-to-patch cross-attention in a single pass.</li>
+            <li>Adding a Cross-Encoder would duplicate the precision gain for 1.5-2.0 seconds extra latency.</li>
+        </ul>
+
+        <span class="badge">Why No Text Normalization</span>
+        <ul>
+            <li>Text preprocessing (lowercasing, stopwords, stemming) operates on parsed text strings.</li>
+            <li>ColPali never parses text — it operates on raw pixel tensors.</li>
+            <li>Only L2 Unit Normalization (||v||₂ = 1.0) is applied to patch vectors to enable SIMD dot-product acceleration.</li>
+        </ul>
+
+        <span class="badge">Image Cache (in 01_cache_architecture.html)</span>
+        <ul>
+            <li>Tier 0: pHash Hamming Distance ≤ 4 (exact/near-duplicate images)</li>
+            <li>Tier 1: CLIP/SigLIP 512d vector cache in Redis RAM</li>
+        </ul>
+    </div>
+
+    <h2>Section 3: Audio RAG — Dual-Path Ingestion</h2>
+    <div class="card">
+        <span class="badge">The Dual-Path Architecture</span>
+<pre class="ascii">
+RAW AUDIO FILE (.wav / .mp3)
+  │
+  ├──► PATH A: SEMANTIC (SPEECH)
+  │    • WhisperX STT → Word-level timestamped transcript
+  │    • Text Embedding → V_speech vector
+  │    • VAD Silence Chunking: 10s-45s windows
+  │
+  └──► PATH B: ACOUSTIC (SOUND)
+       • CLAP Mel-Spectrogram → V_acoustic 512d vector
+       • Chromaprint acoustic fingerprint (Tier 0 Cache)
+       • 10s sliding window chunks
+</pre>
+        
+        <span class="badge">Unified Qdrant Payload</span>
+<pre class="json">
+{
+  "audio_id": "AUD_1042",
+  "start_time": "02:15",
+  "end_time": "02:45",
+  "transcript": "Replace valve 4 immediately",
+  "vectors": {
+    "speech_vec": [0.88, 0.05, ...],
+    "acoustic_vec": [0.12, -0.44, ...]
+  }
+}
+</pre>
+
+        <span class="badge">VAD Chunking Strategy</span>
+        <ul>
+            <li>Minimum chunk: 10 seconds</li>
+            <li>Maximum chunk: 45 seconds</li>
+            <li>Split trigger: Natural silence > 0.5 seconds (Voice Activity Detection)</li>
+            <li>Overlap: 2-second overlap prevents cutting mid-sentence</li>
+        </ul>
+    </div>
+
+    <h2>Section 4: Video RAG — 3-Stream Synchronized Temporal Pipeline</h2>
+    <div class="card">
+        <span class="badge">Architecture</span>
+<pre class="ascii">
+RAW VIDEO FILE (.mp4)
+  │
+  ├──► 1. VISUAL STREAM
+  │    • PySceneDetect / OpenCV scene-cut detection
+  │    • 1 Keyframe extracted per scene change
+  │    • CLIP/SigLIP → V_visual vector
+  │    • Screen OCR for text on screen
+  │
+  ├──► 2. SPEECH STREAM
+  │    • WhisperX → word-level timestamps
+  │    • Text Embedding → V_speech vector
+  │
+  └──► 3. ACOUSTIC STREAM
+       • CLAP → V_acoustic vector
+       • 10s Mel-Spectrogram chunks
+</pre>
+
+        <span class="badge">Temporal Window Synchronization</span>
+        <ul>
+            <li>All 3 vectors are bound to a shared 10-second temporal window: {start: '04:12', end: '04:22'}</li>
+            <li>Retrieval returns the keyframe image + transcript text + exact clickable timestamp</li>
+        </ul>
+
+        <span class="badge">Video Chunking (Why Scene-Cut over Fixed Windows)</span>
+        <ul>
+            <li>A 2-hour 1080p video = 216,000 raw frames at 30FPS</li>
+            <li>Fixed 1FPS sampling = 7,200 vectors (wasteful)</li>
+            <li>Scene-Cut Detection compresses to ~150 keyframe vectors (97.9% compression)</li>
+            <li>Each vector represents a complete visual context (not a random mid-sentence frame)</li>
+        </ul>
+
+        <span class="badge">Multi-Scale Hierarchical Chunking for Long Videos</span>
+        <ul>
+            <li>Low Level: 10-second clip vectors (for precise timestamp pinpointing)</li>
+            <li>High Level: 3-5 minute chapter vectors (for macro topic search)</li>
+        </ul>
+
+        <span class="badge">Retrieval Scoring (3-Stream RRF)</span>
+        <p><code>Score = w1·Sim(Q, V_visual) + w2·Sim(Q, V_speech) + w3·Sim(Q, V_acoustic)</code></p>
+    </div>
+
+    <h2>Section 5: Unified Vector Database Schema</h2>
+    <div class="card">
+        <table>
+            <thead>
+                <tr>
+                    <th>Modality</th>
+                    <th>Vectors Stored</th>
+                    <th>Vector Type</th>
+                    <th>Chunking Unit</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td>Text</td>
+                    <td>Sparse (BM25) + Dense (1536d)</td>
+                    <td>2 Named Vectors</td>
+                    <td>Sentence/Token Window</td>
+                </tr>
+                <tr>
+                    <td>Image</td>
+                    <td>1,024 Patch Vectors per Page</td>
+                    <td>Multi-Vector Matrix</td>
+                    <td>Full Page Image</td>
+                </tr>
+                <tr>
+                    <td>Audio</td>
+                    <td>V_speech + V_acoustic</td>
+                    <td>2 Named Vectors</td>
+                    <td>VAD 10s-45s Window</td>
+                </tr>
+                <tr>
+                    <td>Video</td>
+                    <td>V_visual + V_speech + V_acoustic</td>
+                    <td>3 Named Vectors</td>
+                    <td>Scene-Cut Keyframe</td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+</div>
+</body>
+</html>

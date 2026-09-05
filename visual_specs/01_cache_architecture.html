@@ -1,0 +1,390 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>AXIOM — 01 Cache Architecture Blueprint (Building & Fetching)</title>
+  <style>
+    :root {
+      --bg: #0b0f19;
+      --surface: #111827;
+      --surface-card: #1f2937;
+      --border: #374151;
+      --text: #f9fafb;
+      --text-dim: #9ca3af;
+      --accent-green: #10b981;
+      --accent-cyan: #06b6d4;
+      --accent-amber: #f59e0b;
+      --accent-red: #ef4444;
+      --accent-purple: #8b5cf6;
+      --code-bg: #111827;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      background-color: var(--bg);
+      color: var(--text);
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      line-height: 1.6;
+      padding: 2rem 1rem;
+    }
+
+    .container {
+      max-width: 1000px;
+      margin: 0 auto;
+    }
+
+    header {
+      border-bottom: 1px solid var(--border);
+      padding-bottom: 1.5rem;
+      margin-bottom: 2rem;
+    }
+
+    h1 {
+      font-size: 2rem;
+      color: var(--accent-cyan);
+      margin-bottom: 0.5rem;
+    }
+
+    .subtitle {
+      color: var(--text-dim);
+      font-size: 1rem;
+    }
+
+    .badge {
+      display: inline-block;
+      padding: 0.25rem 0.6rem;
+      border-radius: 9999px;
+      font-size: 0.75rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      margin-right: 0.5rem;
+      margin-top: 0.5rem;
+    }
+    .badge-cyan { background: rgba(6, 182, 212, 0.15); color: var(--accent-cyan); border: 1px solid var(--accent-cyan); }
+    .badge-amber { background: rgba(245, 158, 11, 0.15); color: var(--accent-amber); border: 1px solid var(--accent-amber); }
+    .badge-green { background: rgba(16, 185, 129, 0.15); color: var(--accent-green); border: 1px solid var(--accent-green); }
+
+    .pitch-box {
+      background: rgba(6, 182, 212, 0.1);
+      border: 2px solid var(--accent-cyan);
+      border-radius: 0.75rem;
+      padding: 1.5rem;
+      margin-bottom: 2.5rem;
+      box-shadow: 0 10px 25px -5px rgba(6, 182, 212, 0.1);
+    }
+
+    .pitch-title {
+      font-size: 1.15rem;
+      font-weight: 700;
+      color: var(--accent-cyan);
+      margin-bottom: 0.75rem;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+
+    .pitch-text {
+      font-size: 1.05rem;
+      color: #ffffff;
+      line-height: 1.7;
+      font-style: normal;
+      background: #0f172a;
+      padding: 1.25rem;
+      border-radius: 0.5rem;
+      border-left: 4px solid var(--accent-cyan);
+    }
+
+    section {
+      margin-bottom: 3rem;
+    }
+
+    h2 {
+      font-size: 1.4rem;
+      color: var(--text);
+      margin-bottom: 1.2rem;
+      border-left: 4px solid var(--accent-cyan);
+      padding-left: 0.75rem;
+    }
+
+    .file-card, .blueprint-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 0.5rem;
+      padding: 1.25rem;
+      margin-bottom: 1rem;
+    }
+
+    .file-title {
+      font-family: monospace;
+      font-size: 1.05rem;
+      color: var(--accent-amber);
+      font-weight: bold;
+      margin-bottom: 0.5rem;
+    }
+
+    .file-desc {
+      color: var(--text-dim);
+      font-size: 0.95rem;
+      margin-bottom: 0.75rem;
+    }
+
+    .file-points {
+      list-style-type: none;
+      padding-left: 0;
+    }
+
+    .file-points li {
+      position: relative;
+      padding-left: 1.25rem;
+      margin-bottom: 0.4rem;
+      font-size: 0.9rem;
+      color: var(--text);
+    }
+
+    .file-points li::before {
+      content: "↳";
+      position: absolute;
+      left: 0;
+      color: var(--accent-cyan);
+    }
+
+    .qa-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 0.5rem;
+      padding: 1.5rem;
+      margin-bottom: 1.5rem;
+    }
+
+    .question {
+      font-size: 1.1rem;
+      font-weight: 600;
+      color: var(--accent-cyan);
+      margin-bottom: 0.75rem;
+      display: flex;
+      gap: 0.5rem;
+    }
+
+    .answer {
+      color: var(--text);
+      font-size: 0.95rem;
+      line-height: 1.6;
+    }
+
+    .answer p {
+      margin-bottom: 0.75rem;
+    }
+
+    .answer ul {
+      margin-left: 1.25rem;
+      margin-bottom: 0.75rem;
+    }
+
+    .answer li {
+      margin-bottom: 0.3rem;
+    }
+
+    code, pre {
+      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+    }
+
+    code {
+      background: var(--code-bg);
+      color: var(--accent-amber);
+      padding: 0.15rem 0.4rem;
+      border-radius: 0.25rem;
+      font-size: 0.85em;
+    }
+
+    pre {
+      background: var(--code-bg);
+      border: 1px solid var(--border);
+      padding: 1rem;
+      border-radius: 0.5rem;
+      overflow-x: auto;
+      margin: 0.75rem 0;
+      font-size: 0.85rem;
+      color: var(--text-dim);
+    }
+
+    .diagram {
+      background: #0d1117;
+      border: 1px solid #30363d;
+      border-radius: 0.5rem;
+      padding: 1.5rem;
+      font-family: monospace;
+      white-space: pre;
+      overflow-x: auto;
+      color: var(--accent-cyan);
+      font-size: 0.85rem;
+      line-height: 1.4;
+      margin-top: 1rem;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <header>
+      <h1>AXIOM Blueprint — 01 Cache Architecture</h1>
+      <p class="subtitle">Building & Fetching Multi-Tier Semantic Cache (Text, Image pHash/CLIP, Video & Audio)</p>
+      <div>
+        <span class="badge badge-cyan">Sub-15ms Latency</span>
+        <span class="badge badge-amber">Redis Stack Vector In-Memory</span>
+        <span class="badge badge-green">allkeys-lru Eviction</span>
+      </div>
+    </header>
+
+    <!-- TOP ELEVATOR PITCH -->
+    <div class="pitch-box">
+      <div class="pitch-title">⚡ 30-Second Elevator Pitch (What to say when asked "How does AXIOM's Caching work?")</div>
+      <div class="pitch-text">
+        "AXIOM uses a zero-redundancy two-tier caching pipeline powered by Redis Stack. Incoming queries pass through Input Guardrails first, followed by a Tier 0 SHA-256 exact string match (< 1ms). If that misses, we slice a 128-dim Matryoshka vector from a single forward pass to run Tier 1 cosine similarity search (>= 0.92) in RAM (~15ms). For images and media, we use pHash Hamming distance (<= 4) and CLIP vectors. On a cache hit, we bypass Qdrant and the LLM entirely, saving 99% in latency and 100% in API cost."
+      </div>
+    </div>
+
+    <!-- SECTION 1: SYSTEM DESIGN & CONTROL FLOW BLUEPRINT -->
+    <section>
+      <h2>1. Cache System Control Flow Blueprint</h2>
+      <div class="blueprint-card">
+        <p class="file-desc">Complete end-to-end execution sequence showing the exact position of Input Guardrails, Tier 0 Exact Lookup, Tier 1 Vector Lookup, RAG Pipeline Execution, Output Guardrails, and Cache Creation.</p>
+        
+        <div class="diagram">
+USER QUERY INPUT
+   │
+   ▼
+[ 1. INPUT GUARDRAILS (< 5ms) ]  ──► (Fails Security) ──► REJECT QUERY (403 Forbidden)
+   │
+   ▼ (Passes Security)
+[ 2. TIER 0: EXACT MATCH LOOKUP (< 1ms) ]
+   │  Text: SHA-256 Hash  ·  Image: pHash  ·  Audio: Chromaprint
+   │
+   ├──► [ EXACT HIT ] ──────────────────────────────────────────┐
+   │                                                           │
+   ▼ (EXACT MISS)                                              │
+[ 3. GENERATE EMBEDDING VECTOR ONCE (< 5ms) ]                  │
+   │  Matryoshka Model generates V_full = [1536 dims]          │
+   │  Slice V_128 = V_full[:128]                               │
+   │                                                           │
+   ▼                                                           │
+[ 4. TIER 1: SEMANTIC VECTOR CACHE CHECK (~15ms) ]              │
+   │  Redis RAM Cosine Similarity Search (>= 0.92)             │
+   │                                                           │
+   ├──► [ SEMANTIC HIT ] ──────────────────────────────────────┼──► RETURN CACHED ANSWER TO USER
+   │                                                           │    (Bypasses RAG & LLM!)
+   ▼ (SEMANTIC MISS)                                           │
+[ 5. EXECUTE FULL RAG PIPELINE (~2.5s) ]                       │
+   │  Reuses V_full [1536 dims] in Qdrant (NO RE-EMBEDDING!)   │
+   │  BM25 Sparse + HNSW Dense ──► RRF ──► Cross-Encoder      │
+   │  LLM Generates Raw Response                               │
+   │                                                           │
+   ▼                                                           │
+[ 6. OUTPUT GUARDRAILS (CRAG Verification) ]                   │
+   │  Validates zero hallucinations & safety compliance        │
+   │                                                           │
+   ▼                                                           │
+[ 7. 💾 WRITE CLEAN ANSWER TO REDIS CACHE ]                    │
+   │  Stores V_128 + Answer + TTL (24h) in Redis RAM           │
+   │                                                           │
+   └───────────────────────────────────────────────────────────┘
+        </div>
+      </div>
+    </section>
+
+    <!-- SECTION 2: 3-TIER MULTI-MODAL CACHE STORES -->
+    <section>
+      <h2>2. 3-Tier Multi-Modal Cache Stores</h2>
+      
+      <div class="file-card">
+        <div class="file-title">1. Text Cache Store (Namespace: cache:text)</div>
+        <div class="file-desc">Caches conversational text, document RAG, and SQL queries.</div>
+        <ul class="file-points">
+          <li><strong>Tier 0 Exact String Match:</strong> Normalized string SHA-256 hash lookup in Redis RAM (<code>< 0.2ms</code>).</li>
+          <li><strong>Tier 1 Semantic Vector Match:</strong> Matryoshka 128-dim vector slice cosine similarity (<code>>= 0.92</code>) in Redis Stack (<code>~15ms</code>).</li>
+          <li><strong>Zero-Redundancy Vector Reuse:</strong> Generates embedding vector ONCE. Slices 128-dim for cache; reuses full 1536-dim for Qdrant on cache MISS.</li>
+        </ul>
+      </div>
+
+      <div class="file-card">
+        <div class="file-title">2. Image Cache Store (Namespace: cache:image)</div>
+        <div class="file-desc">Caches photo uploads, infographics, and cropped diagrams.</div>
+        <ul class="file-points">
+          <li><strong>Tier 0 Perceptual Hash (pHash):</strong> Hashes $8 \times 8$ pixel brightness gradients. Matches identical or cropped/resized photos via Hamming Distance $\le 4$ in <code>< 1ms</code>.</li>
+          <li><strong>Tier 1 Visual CLIP Vector Match:</strong> 512-dim CLIP visual embedding cosine similarity (<code>>= 0.90</code>) for different angles/lighting in <code>~20ms</code>.</li>
+        </ul>
+      </div>
+
+      <div class="file-card">
+        <div class="file-title">3. Video & Audio Cache Store (Namespace: cache:multimodal)</div>
+        <div class="file-desc">Caches MP4 videos, speech voice notes, and audio streams.</div>
+        <ul class="file-points">
+          <li><strong>Audio Cache:</strong> Chromaprint acoustic waveform fingerprinting (Hamming $\le 2$, <code>< 2ms</code>) + Whisper transcript Matryoshka vector.</li>
+          <li><strong>Video Cache:</strong> Keyframe sequence `pHash` (1 frame/sec, mean Hamming $\le 3$, <code>< 5ms</code>) + Whisper transcript alignment.</li>
+        </ul>
+      </div>
+    </section>
+
+    <!-- SECTION 3: WRITE FLOW & EVICTION POLICY -->
+    <section>
+      <h2>3. Cache Creation Write Flow & Eviction Strategy</h2>
+      <div class="file-card">
+        <div class="file-title">Cache Creation (Write Flow on Cache MISS)</div>
+        <p class="file-desc">Cache entries are written ONLY AFTER Output Guardrails pass validation. This guarantees that every entry in Redis is pre-sanitized, allowing future Cache HITs to safely skip Output Guardrails.</p>
+        <pre>
+# Production Redis Write Pattern
+redis_client.hset(
+    name=f"cache:text:{hash(query_text)}",
+    mapping={
+        "query_text": query_text.lower().strip(),
+        "query_vector": v_128.tobytes(),  # 128-dim Matryoshka vector
+        "answer_payload": clean_verified_answer,
+        "created_at": time.time()
+    }
+)
+redis_client.expire(f"cache:text:{hash(query_text)}", 86400) # 24h TTL
+        </pre>
+      </div>
+
+      <div class="file-card">
+        <div class="file-title">Memory Limit & Eviction Policy (maxmemory allkeys-lru)</div>
+        <p class="file-desc">FIFO is rejected because it evicts popular queries. We use <code>allkeys-lru</code> (Least Recently Used) + 24-hour TTL expiration.</p>
+        <pre>
+# redis.conf Mandatory Production Config
+maxmemory 4gb
+maxmemory-policy allkeys-lru
+        </pre>
+      </div>
+    </section>
+
+    <!-- SECTION 4: MASTER INTERVIEW QUESTIONS AND ANSWERS -->
+    <section>
+      <h2>4. Interview Q&A Defense for Caching</h2>
+
+      <div class="qa-card">
+        <div class="question">Q1: Do you call the embedding model twice on a Cache MISS?</div>
+        <div class="answer">
+          <p><strong>No, never.</strong> We call the Matryoshka embedding model exactly ONCE after Input Guardrails pass. The model outputs a 1536-dim vector. We slice `vector[:128]` in 0 microseconds to check the Redis cache. If the cache misses, we take the exact same 1536-dim vector object already in memory and pass it directly to Qdrant. Zero re-embedding overhead.</p>
+        </div>
+      </div>
+
+      <div class="qa-card">
+        <div class="question">Q2: Why do you skip Output Guardrails on a Cache HIT?</div>
+        <div class="answer">
+          <p>Because cache entries are written <em>only after</em> passing Output Guardrails during their initial Cache MISS execution. Every response stored in Redis is pre-sanitized and verified. Skipping Output Guardrails on Cache HIT allows us to serve responses in sub-15ms.</p>
+        </div>
+      </div>
+
+      <div class="qa-card">
+        <div class="question">Q3: Why use pHash for images instead of running CLIP for everything?</div>
+        <div class="answer">
+          <p><code>pHash</code> is pure bitwise CPU math executing in <code>< 1ms</code>. It matches identical, cropped, or resized photos without running a neural network. CLIP requires a forward pass (~20ms). By chaining <code>pHash</code> (Tier 0) before CLIP (Tier 1), we handle 80% of duplicate image uploads instantly without touching the GPU.</p>
+        </div>
+      </div>
+    </section>
+  </div>
+</body>
+</html>

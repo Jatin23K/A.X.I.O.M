@@ -1,0 +1,191 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>A.X.I.O.M — 05 Ingestion ETL & Stale Index Purge</title>
+<style>
+  :root {
+    --bg: #0b0f19;
+    --surface: #111827;
+    --surface-card: #1f2937;
+    --border: #374151;
+    --text: #f9fafb;
+    --text-dim: #9ca3af;
+    --accent-green: #10b981;
+    --accent-cyan: #06b6d4;
+    --accent-amber: #f59e0b;
+    --accent-red: #ef4444;
+    --accent-purple: #8b5cf6;
+    --accent: var(--accent-amber);
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background-color: var(--bg); color: var(--text); font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; line-height: 1.6; padding: 2rem 1rem; }
+  .container { max-width: 1000px; margin: 0 auto; }
+  h1 { font-size: 2.2rem; margin-bottom: 0.5rem; }
+  .subtitle { color: var(--text-dim); font-size: 1.1rem; margin-bottom: 2rem; }
+  .pitch-box { background-color: var(--surface-card); padding: 1.5rem; border-radius: 8px; border: 1px solid var(--border); border-left: 4px solid var(--accent); margin-bottom: 2rem; font-size: 1.05rem; }
+  h2 { font-size: 1.5rem; margin-top: 2.5rem; margin-bottom: 1rem; padding-left: 0.75rem; border-left: 4px solid var(--accent); }
+  h3 { font-size: 1.2rem; margin-top: 1.5rem; margin-bottom: 0.75rem; color: var(--text); }
+  .surface-card { background-color: var(--surface-card); border: 1px solid var(--border); border-radius: 8px; padding: 1.5rem; margin-bottom: 1.5rem; }
+  .badge { display: inline-block; padding: 0.25rem 0.5rem; border-radius: 4px; font-size: 0.8rem; font-weight: 600; background-color: rgba(245, 158, 11, 0.1); color: var(--accent); margin-right: 0.5rem; margin-bottom: 0.5rem; }
+  pre { background-color: var(--surface); border: 1px solid var(--border); padding: 1rem; border-radius: 6px; overflow-x: auto; font-family: 'Courier New', Courier, monospace; font-size: 0.9rem; margin-bottom: 1.5rem; color: var(--text-dim); }
+  code { font-family: 'Courier New', Courier, monospace; color: var(--accent); }
+  ul, ol { margin-left: 1.5rem; margin-bottom: 1rem; }
+  li { margin-bottom: 0.5rem; }
+  strong { color: var(--text); }
+</style>
+</head>
+<body>
+  <div class="container">
+    <h1>A.X.I.O.M — 05 Ingestion ETL & Stale Index Purge</h1>
+    <div class="subtitle">Async Write Pipeline · Soft-Delete Versioning · Department Retention Policies · CQRS Architecture</div>
+
+    <div class="pitch-box">
+      <strong>30-Second Pitch:</strong> A.X.I.O.M. separates its data lifecycle into two independent sides: the <strong>Read Side</strong> (live user query serving) and the <strong>Write Side</strong> (background document ingestion and index management). This CQRS (Command Query Responsibility Segregation) architecture ensures that uploading a 4-hour training video or ingesting 500-page contract never blocks or delays live user queries. The ETL pipeline runs in an async Celery task queue, processing Extract → Transform → Load in the background. The Stale Index Purge system uses a Soft-Delete strategy (<code>is_active_version = false</code>) combined with Department-Level Retention Policies to guarantee that different business units (HR vs Legal vs Engineering) enforce their own document lifecycle rules without a central policy bottleneck.
+    </div>
+
+    <h2>CQRS — The Two Sides of A.X.I.O.M.</h2>
+    <div class="surface-card">
+<pre>
+┌─────────────────────────────────────────────┐
+│         WRITE SIDE (Async Background)        │
+│  File Upload → Celery Queue → ETL Pipeline   │
+│  Extract → Transform → Load → Purge Old      │
+│  Goal: Data Freshness, Zero Stale Vectors    │
+└──────────────────────┬──────────────────────┘
+                       │ Writes to
+              ┌────────▼────────┐
+              │  QDRANT + REDIS  │
+              └────────┬────────┘
+                       │ Reads from
+┌──────────────────────▼──────────────────────┐
+│         READ SIDE (Synchronous Live)         │
+│  User Query → Gateway → Cache → RAG → LLM   │
+│  Goal: &lt;15ms Cache / &lt;600ms RAG Serving      │
+└─────────────────────────────────────────────┘
+</pre>
+    </div>
+
+    <h2>ETL Pipeline Execution Steps</h2>
+    <div class="surface-card">
+      <p><strong>Step-by-step async execution after file upload:</strong></p>
+      <ol>
+        <li>Admin uploads file → API returns HTTP 202 Accepted + <code>Task_ID</code> immediately (user never waits)</li>
+        <li>Celery Worker picks up <code>Task_ID</code> from Redis Queue</li>
+        <li><strong>EXTRACT:</strong> Parse modality (PyAV for video, WhisperX for audio, ColPali renderer for PDF/images, text parser for docs)</li>
+        <li><strong>TRANSFORM:</strong> Chunk (VAD/Scene-Cut/Token Window) → Generate embeddings → Validate data integrity contracts</li>
+        <li><strong>PURGE STALE:</strong> Apply Department Retention Policy → Soft-delete or coexist old version</li>
+        <li><strong>LOAD:</strong> Write new active vector records to Qdrant with full metadata payload</li>
+        <li><strong>INVALIDATE CACHE:</strong> Delete matching Redis cache keys pattern: <code>DEL CACHE:*:DOC_ID:*</code></li>
+        <li><strong>STATUS UPDATE:</strong> Mark <code>Task_ID</code> as COMPLETE in Redis</li>
+      </ol>
+    </div>
+
+    <h2>Soft-Delete Versioning System</h2>
+    <div class="surface-card">
+      <h3>The 3-State Version Lifecycle</h3>
+<pre>
+v1.pdf (ACTIVE)
+  │
+  │ New version v2.pdf uploaded
+  ▼
+v1.pdf: is_active_version = false, soft_deleted_at = '2026-07-30'
+v2.pdf: is_active_version = true  ← All live queries retrieve this
+  │
+  │ 30-day retention window
+  ▼
+[DAY 31] CRON Job hard-purges v1.pdf vectors permanently
+</pre>
+
+      <h3>Qdrant Version Payload Schema</h3>
+<pre>
+{
+  "doc_id": "HEALTH_POLICY",
+  "file_version": 2,
+  "is_active_version": true,
+  "soft_deleted_at": null,
+  "ingested_at": "2026-07-30T10:00:00Z",
+  "superseded_by": null
+}
+</pre>
+
+      <h3>Why Soft-Delete over Hard-Delete</h3>
+      <ul>
+        <li><span class="badge">Instant Rollback</span> If v2 has errors, flip v1 back to active in 1 Qdrant payload update</li>
+        <li><span class="badge">Audit Trail</span> Compliance teams can query historical versions for any point in time</li>
+        <li><span class="badge">Zero DB Lock</span> Soft-delete is a single payload field update — no table locks, no index rebuilds</li>
+      </ul>
+    </div>
+
+    <h2>Department-Level Retention Policy Config</h2>
+    <div class="surface-card">
+<pre>
+{
+  "department_retention_policies": {
+    "HR": {
+      "strategy": "SOFT_DELETE_PREVIOUS",
+      "keep_older_versions_active": false,
+      "retention_days": 30
+    },
+    "OPERATIONS": {
+      "strategy": "SOFT_DELETE_PREVIOUS",
+      "keep_older_versions_active": false,
+      "retention_days": 30
+    },
+    "LEGAL": {
+      "strategy": "MULTI_VERSION_COEXISTENCE",
+      "keep_older_versions_active": true,
+      "retention_days": 3650
+    },
+    "ENGINEERING": {
+      "strategy": "MULTI_VERSION_COEXISTENCE",
+      "keep_older_versions_active": true,
+      "retention_days": 365
+    }
+  }
+}
+</pre>
+
+      <h3>Why Different Departments Need Different Strategies</h3>
+      <ul>
+        <li><strong>HR/Operations:</strong> Old policies must be retired immediately to prevent employees filing claims under outdated rules</li>
+        <li><strong>Legal:</strong> Old vendor contracts remain legally binding in court — both versions must be queryable</li>
+        <li><strong>Engineering:</strong> Old API docs must remain active while legacy clients still use API v1.0</li>
+      </ul>
+    </div>
+
+    <h2>Three Real-World Ingestion Examples</h2>
+    <div class="surface-card">
+      <h3>Example 1: Policy PDF Update <span class="badge">HR — Soft Delete</span></h3>
+      <ul>
+        <li>HR uploads <code>Health_Benefits_2026_v2.pdf</code></li>
+        <li>ETL detects department: <strong>HR</strong> → strategy: <code>SOFT_DELETE_PREVIOUS</code></li>
+        <li>v1 vectors: <code>SET is_active_version = false</code>, <code>soft_deleted_at = TODAY</code></li>
+        <li>v2 vectors ingested: <code>is_active_version = true</code></li>
+        <li>Redis cache <code>DEL CACHE:*:HEALTH_BENEFITS:*</code></li>
+        <li>Day 31: CRON hard-purges v1 vectors</li>
+      </ul>
+      
+      <h3>Example 2: Video Training Re-Upload <span class="badge">Engineering — Multi-Version</span></h3>
+      <ul>
+        <li>Engineering uploads <code>Deploy_Microservices_v2.mp4</code></li>
+        <li>ETL detects department: <strong>ENGINEERING</strong> → strategy: <code>MULTI_VERSION_COEXISTENCE</code></li>
+        <li>v1 video vectors remain: <code>is_active_version = true</code></li>
+        <li>v2 video vectors ingested: <code>is_active_version = true</code></li>
+        <li>Employees can now ask: 'What changed between v1 and v2 of the deployment guide?'</li>
+      </ul>
+
+      <h3>Example 3: GDPR Right to be Forgotten <span class="badge">Hard Delete</span></h3>
+      <ul>
+        <li>Compliance event: client_id <code>CLIENT_709</code> requests full erasure</li>
+        <li>Qdrant: <code>DELETE WHERE payload.client_id == 'CLIENT_709'</code></li>
+        <li>Redis: <code>DEL CACHE:*:CLIENT_709:*</code></li>
+        <li>S3: Delete all raw audio/PDF files for CLIENT_709</li>
+        <li>Compliance log: Record deletion event with timestamp for audit</li>
+      </ul>
+    </div>
+
+  </div>
+</body>
+</html>

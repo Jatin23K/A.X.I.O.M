@@ -1,0 +1,166 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>A.X.I.O.M — 00 Complete Operational Flow</title>
+<style>
+:root {
+  --bg: #0b0f19;
+  --surface: #111827;
+  --surface-card: #1f2937;
+  --border: #374151;
+  --text: #f9fafb;
+  --text-dim: #9ca3af;
+  --accent-green: #10b981;
+  --accent-cyan: #06b6d4;
+  --accent-amber: #f59e0b;
+  --accent-red: #ef4444;
+  --accent-purple: #8b5cf6;
+}
+body {
+  background-color: var(--bg);
+  color: var(--text);
+  font-family: system-ui, -apple-system, sans-serif;
+  line-height: 1.6;
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 2rem;
+}
+h1, h2, h3 { color: var(--text); margin-top: 2rem; }
+h1 { font-size: 2.25rem; border-bottom: 1px solid var(--border); padding-bottom: 0.5rem; }
+.subtitle { color: var(--text-dim); font-size: 1.25rem; margin-top: -1rem; margin-bottom: 2rem; }
+.pitch-box {
+  background-color: var(--surface-card);
+  border-left: 4px solid;
+  padding: 1.5rem;
+  border-radius: 0.5rem;
+  margin-bottom: 2rem;
+  box-shadow: 0 4px 6px rgba(0,0,0,0.3);
+}
+.pitch-box.green { border-left-color: var(--accent-green); }
+table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 2rem 0;
+  background-color: var(--surface);
+  border-radius: 0.5rem;
+  overflow: hidden;
+  box-shadow: 0 4px 6px rgba(0,0,0,0.3);
+}
+th, td { padding: 1rem; text-align: left; border-bottom: 1px solid var(--border); }
+th { background-color: var(--surface-card); color: var(--accent-cyan); }
+tr:last-child td { border-bottom: none; }
+tr:hover { background-color: var(--surface-card); }
+pre {
+  background-color: var(--surface);
+  border: 1px solid var(--border);
+  padding: 1.5rem;
+  border-radius: 0.5rem;
+  overflow-x: auto;
+  color: var(--accent-amber);
+  font-family: monospace;
+  line-height: 1.4;
+}
+ul li { margin-bottom: 0.75rem; }
+.badge {
+  display: inline-block; padding: 0.25rem 0.5rem; border-radius: 4px; font-size: 0.75rem; font-weight: bold; background-color: var(--surface-card); border: 1px solid var(--border); color: var(--accent-red);
+}
+</style>
+</head>
+<body>
+
+<h1>A.X.I.O.M — 00 Complete Operational Flow</h1>
+<div class="subtitle">End-to-End Request Pipeline: HTTP Request to Grounded Response</div>
+
+<div class="pitch-box green">
+  <strong>30-Second Elevator Pitch:</strong> Every user query passes through 11 sequential stages, each with a strict latency budget, security checkpoint, or quality gate. The pipeline is designed to serve Cache Hits in under 15ms, Text RAG in under 600ms, and Multimodal Video RAG in under 2.5 seconds — with zero hallucinations guaranteed by the RAG Triad Observability layer.
+</div>
+
+<h2>Full Pipeline Diagram</h2>
+<pre>
+HTTP REQUEST (Headers: Bearer JWT | Body: Query + Modality)
+  │
+  ▼
+[ 1. API GATEWAY: JWT AUTHENTICATION (&lt;0.5ms) ] → (Invalid Token) → REJECT 401
+  │ Decodes JWT → Extracts Tenant_ID, Department, Clearance_Level
+  │ Computes Permission_Hash = SHA256(Tenant + Dept + Clearance)
+  ▼
+[ 2. INPUT GUARDRAILS (&lt;5ms) ] → (Malicious/PII) → REJECT 400
+  │ Sanitizes query, strips PII, blocks prompt injection
+  ▼
+[ 3. ROLE-SCOPED CACHE CHECK (&lt;15ms) ] → CACHE HIT → RETURN INSTANTLY
+  │ Key: SHA256(Tenant + Dept + Clearance + Query)
+  │ Checks L1 Redis Exact Hash → L2 Redis Vector Similarity (&gt;=0.92)
+  ▼ CACHE MISS
+[ 4. QDRANT PRE-FILTERING ] 
+  │ Filters: rbac_roles CONTAINS user_role AND required_clearance &lt;= user_clearance
+  │         AND is_active_version == true AND department_id == user_department
+  ▼
+[ 5. MODALITY ROUTER ]
+  ├──► TEXT → Matryoshka 1536d Embedding → BM25+HNSW RRF → Cross-Encoder
+  ├──► IMAGE → ColPali ViT Patches → MaxSim Late Interaction
+  ├──► AUDIO → WhisperX STT + CLAP → Dual-Vector Search
+  └──► VIDEO → PySceneDetect Keyframes + WhisperX + CLAP → 3-Stream Search
+  ▼
+[ 6. DEPARTMENT MODEL ROUTER ]
+  ├──► HR/Support → Gemini 2.5 Flash-Lite (&lt;300ms, $0.0001/query)
+  ├──► Engineering → Gemini 2.5 Flash (&lt;800ms, $0.001/query)
+  └──► Legal/Finance → Gemini 2.5 Pro (&lt;2500ms, $0.02/query)
+  ▼
+[ 7. LLM/VLM GENERATION ]
+  │ Context Budget: 8,000 token cap per standard query
+  │ API Circuit Breaker: HTTP 429 → Key Rotation → Flash Fallback → Ollama
+  ▼
+[ 8. OUTPUT GUARDRAILS ]
+  │ Groundedness Score &lt; 1.0 → SAFE FAILURE: Block response, return citation gap
+  │ Verbatim Citation Mapping: [Ref X] → Exact PDF page / Audio timestamp / Video frame
+  ▼
+[ 9. RAG TRIAD SCORING (Async Non-Blocking) ]
+  │ Context Relevance + Groundedness + Answer Relevance → logged to Telemetry
+  │ OpenTelemetry trace_id spans entire pipeline
+  ▼
+[ 10. CACHE WRITE ]
+  │ Stores response in Redis under Role-Scoped Key with 24h TTL
+  │ Tags: cacheable=true/false per document sensitivity
+  ▼
+[ 11. SERVE RESPONSE TO USER ]
+     Answer + [Ref X] Citations + Source Document Links + Timestamps
+</pre>
+
+<h2>Latency Budget</h2>
+<table>
+  <thead>
+    <tr>
+      <th>Stage</th>
+      <th>Technology</th>
+      <th>Target Latency</th>
+      <th>SLA Max</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr><td>JWT Authentication</td><td>API Gateway (C++/Rust)</td><td>&lt;0.5ms</td><td>1ms</td></tr>
+    <tr><td>Input Guardrails</td><td>Sanitizer Regex</td><td>&lt;5ms</td><td>10ms</td></tr>
+    <tr><td>Cache Check (Hit)</td><td>Redis RAM</td><td>&lt;15ms</td><td>30ms</td></tr>
+    <tr><td>Qdrant Pre-Filtering</td><td>Rust HNSW</td><td>&lt;20ms</td><td>50ms</td></tr>
+    <tr><td>Text RAG (Full)</td><td>Matryoshka + RRF + Reranker</td><td>&lt;200ms</td><td>400ms</td></tr>
+    <tr><td>Visual RAG (ColPali)</td><td>ViT Patches + MaxSim</td><td>&lt;400ms</td><td>800ms</td></tr>
+    <tr><td>Audio RAG</td><td>WhisperX + CLAP</td><td>&lt;300ms</td><td>600ms</td></tr>
+    <tr><td>Video RAG</td><td>3-Stream Search</td><td>&lt;500ms</td><td>1000ms</td></tr>
+    <tr><td>LLM Inference (Flash)</td><td>Gemini 2.5 Flash</td><td>&lt;600ms</td><td>1200ms</td></tr>
+    <tr><td>LLM Inference (Pro)</td><td>Gemini 2.5 Pro</td><td>&lt;2000ms</td><td>4000ms</td></tr>
+    <tr><td>Output Guardrails</td><td>Groundedness Check</td><td>&lt;50ms</td><td>100ms</td></tr>
+  </tbody>
+</table>
+
+<h2>Safe Failure Decision Points</h2>
+<p>Every point in the pipeline where A.X.I.O.M. exits gracefully instead of hallucinating:</p>
+<ul>
+  <li><span class="badge">Context Relevance &lt; 0.40</span> → Block LLM call, return knowledge gap message</li>
+  <li><span class="badge">Groundedness &lt; 1.00</span> → Strip unbacked claims, return partial answer with citation gap warning</li>
+  <li><span class="badge">Circuit Breaker OPEN</span> → Route to fallback model, never return 500 error</li>
+  <li><span class="badge">JWT Invalid/Expired</span> → Return 401, never expose any cached data</li>
+</ul>
+
+</body>
+</html>

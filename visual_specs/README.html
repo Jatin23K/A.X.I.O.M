@@ -1,0 +1,140 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>A.X.I.O.M — Adaptive eXtended Intelligence & Omnimodal Memory</title>
+<style>
+:root {
+  --bg: #0b0f19;
+  --surface: #111827;
+  --surface-card: #1f2937;
+  --border: #374151;
+  --text: #f9fafb;
+  --text-dim: #9ca3af;
+  --accent-green: #10b981;
+  --accent-cyan: #06b6d4;
+  --accent-amber: #f59e0b;
+  --accent-red: #ef4444;
+  --accent-purple: #8b5cf6;
+}
+body {
+  background-color: var(--bg);
+  color: var(--text);
+  font-family: system-ui, -apple-system, sans-serif;
+  line-height: 1.6;
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 2rem;
+}
+h1, h2, h3 { color: var(--text); margin-top: 2rem; }
+h1 { font-size: 2.25rem; border-bottom: 1px solid var(--border); padding-bottom: 0.5rem; }
+.subtitle { color: var(--text-dim); font-size: 1.25rem; margin-top: -1rem; margin-bottom: 2rem; }
+.pitch-box {
+  background-color: var(--surface-card);
+  border-left: 4px solid;
+  padding: 1.5rem;
+  border-radius: 0.5rem;
+  margin-bottom: 2rem;
+  box-shadow: 0 4px 6px rgba(0,0,0,0.3);
+}
+.pitch-box.cyan { border-left-color: var(--accent-cyan); }
+table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 2rem 0;
+  background-color: var(--surface);
+  border-radius: 0.5rem;
+  overflow: hidden;
+  box-shadow: 0 4px 6px rgba(0,0,0,0.3);
+}
+th, td { padding: 1rem; text-align: left; border-bottom: 1px solid var(--border); }
+th { background-color: var(--surface-card); color: var(--accent-cyan); }
+tr:last-child td { border-bottom: none; }
+tr:hover { background-color: var(--surface-card); }
+pre {
+  background-color: var(--surface);
+  border: 1px solid var(--border);
+  padding: 1.5rem;
+  border-radius: 0.5rem;
+  overflow-x: auto;
+  color: var(--accent-green);
+  font-family: monospace;
+}
+.card-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 1.5rem; margin: 2rem 0; }
+.card { background-color: var(--surface); border: 1px solid var(--border); border-radius: 0.5rem; padding: 1.5rem; }
+.card h3 { margin-top: 0; color: var(--accent-amber); }
+.badge {
+  display: inline-block; padding: 0.25rem 0.5rem; border-radius: 4px; font-size: 0.75rem; font-weight: bold; background-color: var(--surface-card); border: 1px solid var(--border);
+}
+</style>
+</head>
+<body>
+
+<h1>A.X.I.O.M — Adaptive eXtended Intelligence & Omnimodal Memory</h1>
+<div class="subtitle">Enterprise Multi-Modal RAG Architecture Specification for C.O.R.E.</div>
+
+<div class="pitch-box cyan">
+  <strong>30-Second Elevator Pitch:</strong> A.X.I.O.M. is the Knowledge Intelligence Layer powering C.O.R.E. — a production-grade Enterprise RAG specification designed to handle Text, Image, Audio, and Video knowledge retrieval with zero hallucinations, role-isolated security, and sub-15ms cache responses. Every architectural decision is documented with exact technical rationale — from why ColPali MaxSim eliminates Cross-Encoder Rerankers for visual retrieval, to why Pre-Filtering in Qdrant prevents cache-layer data breaches.
+</div>
+
+<h2>Why A.X.I.O.M. Exists</h2>
+<p>
+  C.O.R.E. is a multi-node personal AI OS. Its knowledge base cannot be text-only — memories include screenshots, voice recordings, video tutorials, and documents. A.X.I.O.M. is the RAG backbone that handles all 4 modalities with enterprise-grade security and production reliability.
+</p>
+
+<h2>Document Index</h2>
+<table>
+  <thead>
+    <tr>
+      <th>File Name</th>
+      <th>Module Name</th>
+      <th>Description</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr><td><span class="badge">00_operational_flow.html</span></td><td>Operational Flow</td><td>Complete end-to-end pipeline from HTTP request to response</td></tr>
+    <tr><td><span class="badge">01_cache_architecture.html</span></td><td>Cache Architecture</td><td>2-Tier Multi-Modal Semantic Cache (SHA-256 + Matryoshka Vector)</td></tr>
+    <tr><td><span class="badge">02_matryoshka_rag_engine.html</span></td><td>Matryoshka RAG</td><td>Matryoshka RAG Engine with Hybrid RRF Search and Cross-Encoder Reranking</td></tr>
+    <tr><td><span class="badge">03_multimodal_rag.html</span></td><td>Multimodal RAG</td><td>ColPali Image RAG, Dual-Path Audio RAG, 3-Stream Video RAG</td></tr>
+    <tr><td><span class="badge">04_enterprise_security.html</span></td><td>Enterprise Security</td><td>JWT Gateway, 2-Checkpoint RBAC, Role-Scoped Cache Key Isolation</td></tr>
+    <tr><td><span class="badge">05_ingestion_etl.html</span></td><td>Ingestion ETL</td><td>Async ETL Pipeline, Soft-Delete Versioning, Department Retention Policies</td></tr>
+    <tr><td><span class="badge">06_observability.html</span></td><td>Observability</td><td>RAG Triad Metrics, OpenTelemetry Tracing, Safe Failure Contract, Citation Mapping</td></tr>
+    <tr><td><span class="badge">07_circuit_breakers_sla.html</span></td><td>Circuit Breakers &amp; SLA</td><td>API Circuit Breakers, Key Pool Rotation, Department Model Routing, Cost SLAs</td></tr>
+  </tbody>
+</table>
+
+<h2>C.O.R.E. Ecosystem Connection</h2>
+<pre>
+C.O.R.E. SOVEREIGN AI OS
+├── JAMES (Flutter Mobile Node)
+├── DAVID (Python/React Desktop Node)
+└── A.X.I.O.M. [THIS SPEC] — Knowledge Intelligence Layer
+    ├── Text Memory (Documents, Notes, Logs)
+    ├── Visual Memory (Screenshots, Diagrams, PDFs)
+    ├── Voice Memory (Calls, Voice Notes, Meetings)
+    └── Video Memory (Tutorials, Recordings, Lectures)
+</pre>
+
+<h2>Design Philosophy</h2>
+<div class="card-grid">
+  <div class="card">
+    <h3>ColPali over OCR+Text</h3>
+    <p>Preserves the spatial layout of visual documents, ensuring tables, charts, and diagrams are understood exactly as they appear visually.</p>
+  </div>
+  <div class="card">
+    <h3>Pre-Filtering over Post-Filtering</h3>
+    <p>Prevents security breaches at the vector search level by aggressively filtering data before similarity search is applied.</p>
+  </div>
+  <div class="card">
+    <h3>Hierarchical Cache Keys</h3>
+    <p>Using Hierarchical Cache Keys over Role-Only Keys eliminates cache duplication while maintaining strict security boundaries.</p>
+  </div>
+  <div class="card">
+    <h3>Department Model Routing</h3>
+    <p>Using Department Model Routing over a Single Model balances intelligence, latency, and cost per business unit optimally.</p>
+  </div>
+</div>
+
+</body>
+</html>

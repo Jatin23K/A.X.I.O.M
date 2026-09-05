@@ -1,0 +1,241 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>A.X.I.O.M — 07 Circuit Breakers, SLAs & Department Model Routing</title>
+<style>
+  :root {
+    --bg: #0b0f19;
+    --surface: #111827;
+    --surface-card: #1f2937;
+    --border: #374151;
+    --text: #f9fafb;
+    --text-dim: #9ca3af;
+    --accent-green: #10b981;
+    --accent-cyan: #06b6d4;
+    --accent-amber: #f59e0b;
+    --accent-red: #ef4444;
+    --accent-purple: #8b5cf6;
+    --accent: var(--accent-amber); /* amber/orange */
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background-color: var(--bg); color: var(--text); font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; line-height: 1.6; padding: 2rem 1rem; }
+  .container { max-width: 1000px; margin: 0 auto; }
+  h1 { font-size: 2.2rem; margin-bottom: 0.5rem; }
+  .subtitle { color: var(--text-dim); font-size: 1.1rem; margin-bottom: 2rem; }
+  .pitch-box { background-color: var(--surface-card); padding: 1.5rem; border-radius: 8px; border: 1px solid var(--border); border-left: 4px solid var(--accent); margin-bottom: 2rem; font-size: 1.05rem; }
+  h2 { font-size: 1.5rem; margin-top: 2.5rem; margin-bottom: 1rem; padding-left: 0.75rem; border-left: 4px solid var(--accent); }
+  h3 { font-size: 1.2rem; margin-top: 1.5rem; margin-bottom: 0.75rem; color: var(--text); }
+  .surface-card { background-color: var(--surface-card); border: 1px solid var(--border); border-radius: 8px; padding: 1.5rem; margin-bottom: 1.5rem; overflow-x: auto; }
+  .badge { display: inline-block; padding: 0.25rem 0.5rem; border-radius: 4px; font-size: 0.8rem; font-weight: 600; background-color: rgba(245, 158, 11, 0.1); color: var(--accent); margin-right: 0.5rem; margin-bottom: 0.5rem; }
+  pre { background-color: var(--surface); border: 1px solid var(--border); padding: 1rem; border-radius: 6px; overflow-x: auto; font-family: 'Courier New', Courier, monospace; font-size: 0.9rem; margin-bottom: 1.5rem; color: var(--text-dim); }
+  code { font-family: 'Courier New', Courier, monospace; color: var(--accent); }
+  ul, ol { margin-left: 1.5rem; margin-bottom: 1rem; }
+  li { margin-bottom: 0.5rem; }
+  strong { color: var(--text); }
+  table { width: 100%; border-collapse: collapse; margin-bottom: 1.5rem; min-width: 600px; }
+  th, td { padding: 0.75rem; text-align: left; border-bottom: 1px solid var(--border); }
+  th { background-color: var(--surface); font-weight: 600; }
+</style>
+</head>
+<body>
+  <div class="container">
+    <h1>A.X.I.O.M — 07 Circuit Breakers, SLAs & Department Model Routing</h1>
+    <div class="subtitle">API Key Pool Rotation · Stateful Circuit Breaker · Latency/Cost SLAs · Department Intelligence Tiers</div>
+
+    <div class="pitch-box">
+      <strong>30-Second Pitch:</strong> Enterprise RAG systems must never crash when a cloud LLM provider returns HTTP 429 rate limits or HTTP 503 outages. A.X.I.O.M. uses a Stateful Circuit Breaker with a 6-key API pool, automatic Round-Robin rotation, and a 3-state machine (CLOSED → OPEN → HALF-OPEN) that reroutes traffic to lightweight fallback models within 0.1ms of detecting a failure — without the user ever seeing an error. The Latency/Cost SLA layer intelligently routes queries to the cheapest model capable of answering the question, using Department-Level Model Routing (Flash-Lite for HR FAQ, Flash for Engineering, Pro for Legal/Finance reasoning) to balance intelligence, latency, and API billing costs.
+    </div>
+
+    <h2>The 6-Key API Pool + Round-Robin Rotation</h2>
+    <div class="surface-card">
+<pre>
+Incoming LLM Requests
+        │
+        ▼
+[ ROUND-ROBIN KEY SELECTOR ]
+  Key 1 → Key 2 → Key 3 → Key 4 → Key 5 → Key 6 → Key 1...
+        │
+  Each key serves ~16.7% of total request volume
+  HTTP 429 on Key 3 → Key 3 removed from pool for 60s
+  Remaining keys (1,2,4,5,6) absorb load at ~20% each
+</pre>
+      
+      <h3>Why Round-Robin over Random Selection</h3>
+      <ul>
+        <li>Even distribution prevents single-key exhaustion under burst traffic</li>
+        <li>Stateful tracking per key: <code>request_count</code>, <code>last_error_time</code>, <code>consecutive_failures</code></li>
+        <li>Keys are re-admitted after 60-second cooldown window</li>
+      </ul>
+    </div>
+
+    <h2>Circuit Breaker State Machine</h2>
+    <div class="surface-card">
+<pre>
+┌────────────────────────────────────────────────────────────┐
+│                                                            │
+│  ┌──────────────┐  Error Rate>50%   ┌──────────────────┐  │
+│  │ CLOSED STATE │ ─────────────────► │   OPEN STATE     │  │
+│  │ (Normal Ops) │ ◄───────────────── │ (Bypass Primary) │  │
+│  └──────────────┘  Success Rate>95%  └────────┬─────────┘  │
+│         ▲                                     │            │
+│         │           60s Cooldown              │            │
+│         │      ┌─────────────────────┐        │            │
+│         └──────│  HALF-OPEN STATE    │◄───────┘            │
+│                │ (1 Trial Request)   │                     │
+│                └─────────────────────┘                     │
+└────────────────────────────────────────────────────────────┘
+</pre>
+      
+      <ul>
+        <li><strong>CLOSED (Normal):</strong> Routes to primary model (Gemini 2.5 Pro/Flash)</li>
+        <li><strong>OPEN (Tripped):</strong> 5 consecutive failures OR HTTP 429 OR &gt;2000ms timeout → Bypass primary for 60s → Route ALL traffic to fallback</li>
+        <li><strong>HALF-OPEN (Recovery):</strong> After 60s cooldown, send 1 trial request → Success → CLOSED | Failure → OPEN again</li>
+      </ul>
+
+      <h3>Fallback Cascade</h3>
+      <p>Primary (Gemini Pro) → Flash (Gemini 2.5 Flash) → Flash-Lite (Gemini 2.5 Flash-Lite) → Local (Ollama/Llama-3-8B)</p>
+    </div>
+
+    <h2>Department-Level Model Routing Table</h2>
+    <div class="surface-card">
+      <table>
+        <thead>
+          <tr>
+            <th>Department</th>
+            <th>Query Complexity</th>
+            <th>Model Assigned</th>
+            <th>Latency Target</th>
+            <th>Max Latency</th>
+            <th>Cost/1k Queries</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>HR, Customer Support, Operations</td>
+            <td>Low — FAQ, Policy Lookup, Simple Search</td>
+            <td>Gemini 2.5 Flash-Lite / Llama-3-8B</td>
+            <td>&lt;300ms</td>
+            <td>600ms</td>
+            <td>$0.10</td>
+          </tr>
+          <tr>
+            <td>Engineering, Product</td>
+            <td>Medium — Code, Architecture, Technical Docs</td>
+            <td>Gemini 2.5 Flash</td>
+            <td>&lt;800ms</td>
+            <td>1600ms</td>
+            <td>$1.00</td>
+          </tr>
+          <tr>
+            <td>Legal, Compliance, Audit</td>
+            <td>High — Contract Analysis, Multi-Doc Reasoning</td>
+            <td>Gemini 2.5 Pro</td>
+            <td>&lt;2500ms</td>
+            <td>5000ms</td>
+            <td>$20.00</td>
+          </tr>
+          <tr>
+            <td>Finance, Executive</td>
+            <td>High — Financial Modeling, Strategic Analysis</td>
+            <td>Gemini 2.5 Pro</td>
+            <td>&lt;2500ms</td>
+            <td>5000ms</td>
+            <td>$20.00</td>
+          </tr>
+        </tbody>
+      </table>
+
+      <h3>Why This Routing Strategy Matters (The Cost Math)</h3>
+      <ul>
+        <li>If ALL 1,000 daily queries used Gemini 2.5 Pro at $0.02/query → $20/day = $7,300/year</li>
+        <li>With Department Routing: 700 HR/Ops queries at $0.0001 + 200 Engineering at $0.001 + 100 Legal at $0.02 → $0.07 + $0.20 + $2.00 = $2.27/day = $828/year</li>
+        <li><strong>Annual Savings:</strong> $6,472/year (88.6% cost reduction) with zero intelligence degradation for any department</li>
+      </ul>
+    </div>
+
+    <h2>Latency & Cost SLA Matrix</h2>
+    <div class="surface-card">
+      <table>
+        <thead>
+          <tr>
+            <th>Execution Path</th>
+            <th>Target TTFT</th>
+            <th>Max Acceptable</th>
+            <th>Cost SLA/1k</th>
+            <th>Fallback If Breached</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>Cache Hit (L1/L2)</td>
+            <td>&lt;15ms</td>
+            <td>30ms</td>
+            <td>$0.00</td>
+            <td>N/A — RAM failure → L2</td>
+          </tr>
+          <tr>
+            <td>Text RAG (Flash)</td>
+            <td>&lt;600ms</td>
+            <td>1200ms</td>
+            <td>$0.20</td>
+            <td>Flash-Lite</td>
+          </tr>
+          <tr>
+            <td>Visual RAG (ColPali)</td>
+            <td>&lt;1200ms</td>
+            <td>2500ms</td>
+            <td>$0.80</td>
+            <td>Downscale image resolution</td>
+          </tr>
+          <tr>
+            <td>Audio RAG</td>
+            <td>&lt;800ms</td>
+            <td>1600ms</td>
+            <td>$0.40</td>
+            <td>Transcript-only fallback</td>
+          </tr>
+          <tr>
+            <td>Video RAG</td>
+            <td>&lt;1500ms</td>
+            <td>3000ms</td>
+            <td>$1.20</td>
+            <td>Keyframe-only fallback</td>
+          </tr>
+          <tr>
+            <td>Deep Reasoning (Pro)</td>
+            <td>&lt;2500ms</td>
+            <td>5000ms</td>
+            <td>$2.50</td>
+            <td>Flash with chain-of-thought</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <h2>Context Token Budget (Cost SLA Enforcement)</h2>
+    <div class="surface-card">
+      <ul>
+        <li><strong>Standard queries:</strong> Max 8,000 tokens of context window</li>
+        <li>If RRF retrieves 40 chunks (50,000 tokens): Reranker trims to Top-5 (~4,000 tokens)</li>
+        <li><strong>Legal/Finance queries:</strong> Extended budget to 32,000 tokens (Pro model context window)</li>
+        <li>Token budget prevents single queries from consuming disproportionate API billing</li>
+      </ul>
+    </div>
+
+    <h2>Three Real-World Circuit Breaker Examples</h2>
+    <div class="surface-card">
+      <h3>Example 1: HTTP 429 Key Rotation</h3>
+      <p>Monday 9AM surge exhausts Key 1 quota → Circuit Breaker detects HTTP 429 → Removes Key 1 from pool in 0.1ms → Rotates to Key 2 → User experiences zero delay</p>
+
+      <h3>Example 2: Regional Cloud Outage Failover</h3>
+      <p>Gemini API responds in &gt;2000ms due to GCP regional incident → Circuit Breaker trips to OPEN after 5 timeouts → ALL traffic routed to Ollama/Llama-3-8B local inference → Users receive answers in 2.4s instead of 30s timeout</p>
+
+      <h3>Example 3: Oversized Context Cost Spike Prevention</h3>
+      <p>User submits 200-page document asking for summary → RAG retrieves 60 chunks (80,000 tokens) → Cost SLA enforces 8,000 token cap → Reranker trims to Top-5 highest-scored chunks (4,200 tokens) → Query costs $0.002 instead of $0.08</p>
+    </div>
+
+  </div>
+</body>
+</html>

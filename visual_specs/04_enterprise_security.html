@@ -1,0 +1,202 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>A.X.I.O.M — 04 Enterprise Security & RBAC</title>
+<style>
+:root {
+  --bg: #0b0f19;
+  --surface: #111827;
+  --surface-card: #1f2937;
+  --border: #374151;
+  --text: #f9fafb;
+  --text-dim: #9ca3af;
+  --accent-green: #10b981;
+  --accent-cyan: #06b6d4;
+  --accent-amber: #f59e0b;
+  --accent-red: #ef4444;
+  --accent-purple: #8b5cf6;
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { background-color: var(--bg); color: var(--text); font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; line-height: 1.6; padding: 2rem 1rem; }
+.container { max-width: 1000px; margin: 0 auto; }
+h1 { margin-bottom: 0.5rem; color: var(--text); }
+h2 {
+    margin-top: 2rem;
+    margin-bottom: 1rem;
+    padding-left: 0.75rem;
+    border-left: 4px solid var(--accent-red);
+    color: var(--text);
+}
+.subtitle { color: var(--text-dim); margin-bottom: 2rem; font-size: 1.1rem; }
+.pitch-box {
+    background-color: var(--surface);
+    border: 1px solid var(--accent-red);
+    border-left: 6px solid var(--accent-red);
+    padding: 1.5rem;
+    border-radius: 4px;
+    margin-bottom: 2rem;
+    font-weight: 500;
+}
+.card {
+    background-color: var(--surface-card);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 1.5rem;
+    margin-bottom: 1.5rem;
+}
+pre.ascii {
+    background-color: #000;
+    color: var(--accent-green);
+    padding: 1rem;
+    border-radius: 6px;
+    overflow-x: auto;
+    font-family: 'Courier New', Courier, monospace;
+    line-height: 1.2;
+    margin-bottom: 1rem;
+}
+pre.json {
+    background-color: #000;
+    color: var(--accent-cyan);
+    padding: 1rem;
+    border-radius: 6px;
+    overflow-x: auto;
+    font-family: 'Courier New', Courier, monospace;
+    margin-bottom: 1rem;
+}
+.badge {
+    display: inline-block;
+    padding: 0.25em 0.6em;
+    font-size: 0.85em;
+    font-weight: 700;
+    border-radius: 4px;
+    background-color: rgba(239, 68, 68, 0.2);
+    color: var(--accent-red);
+    margin-bottom: 0.5rem;
+}
+ul { margin-left: 1.5rem; margin-bottom: 1rem; }
+li { margin-bottom: 0.5rem; color: var(--text-dim); }
+p { margin-bottom: 1rem; color: var(--text-dim); }
+strong { color: var(--text); }
+</style>
+</head>
+<body>
+<div class="container">
+    <h1>A.X.I.O.M — 04 Enterprise Security & RBAC</h1>
+    <div class="subtitle">JWT API Gateway · 2-Checkpoint Security · Role-Scoped Cache Isolation · Zero-Trust Access</div>
+
+    <div class="pitch-box">
+        <h3>Section 0: 30-Second Pitch</h3>
+        <p style="color: var(--text); margin-top: 0.5rem; margin-bottom: 0;">A.X.I.O.M. enforces a Zero-Trust security model across two independent checkpoints. Checkpoint 1 (API Gateway) validates JWT bearer tokens in under 0.5ms and blocks unauthorized route access before touching any database. Checkpoint 2 (Qdrant Pre-Filter) enforces document-level access by filtering vector search to only records matching the user's clearance level and department — before any cosine similarity calculation runs. The Cache layer is secured by Role-Scoped Cache Keys that cryptographically bind query results to the exact Permission Set of the user who generated them.</p>
+    </div>
+
+    <h2>Section 1: The 2-Checkpoint Security System</h2>
+    <div class="card">
+<pre class="ascii">
+HTTP REQUEST (Bearer JWT Token)
+  │
+  ▼
+[ CHECKPOINT 1: API Gateway (&lt;0.5ms) ]
+  │ Validates JWT signature using OIDC Public Key (JWKS) from RAM
+  │ Decodes: user_id, tenant_id, department, rbac_roles, clearance_level
+  │ Checks: user_clearance >= route_required_clearance
+  │
+  ├──► FAIL → HTTP 401 (Invalid/Expired Token) | HTTP 403 (Insufficient Clearance)
+  ▼ PASS
+[ ROLE-SCOPED CACHE CHECK ]
+  │ Key: SHA256(Tenant_ID + Department + Clearance_Level + Query_Text)
+  │
+  ├──► HIT → Return cached answer (Guaranteed authorized for this clearance)
+  ▼ MISS
+[ CHECKPOINT 2: QDRANT PRE-FILTER (&lt;20ms) ]
+  │ Filter: required_clearance &lt;= user_clearance
+  │       AND is_active_version == true
+  │       AND department_id IN user_departments
+  │ Vector search runs ONLY on pre-filtered authorized subset
+  │
+  └──► Returns only documents user is authorized to access
+</pre>
+    </div>
+
+    <h2>Section 2: JWT Token Lifecycle</h2>
+    <div class="card">
+        <ul>
+            <li><strong>Issuance:</strong> When an employee logs in via Okta/Keycloak, a signed JWT is issued containing: user_id, tenant_id, department, rbac_roles[], clearance_level, exp (expiration timestamp)</li>
+            <li><strong>Expiration:</strong> Token expires after 15-60 minutes (exp timestamp). API Gateway rejects expired tokens with HTTP 401.</li>
+            <li><strong>Revocation (Fired Employee):</strong> IT Admin disables account → Refresh Token revoked → JWT token ID (jti) added to Redis Token Blacklist → Gateway checks blacklist on every request. Sub-1ms block.</li>
+            <li><strong>Zero Database Calls:</strong> All user claims are embedded in the JWT. Gateway verifies using cached JWKS public key in RAM. No SQL queries on every request.</li>
+        </ul>
+    </div>
+
+    <h2>Section 3: Clearance Level Hierarchy (4 Levels)</h2>
+    <div class="card">
+<pre class="ascii">
+Level 0: PUBLIC      → Office address, holiday schedule, Wi-Fi password
+Level 1: INTERNAL    → Project specs, team roadmaps, engineering docs
+Level 2: RESTRICTED  → Executive salaries, Q3 financial reports, layoff plans
+Level 3: ADMIN       → System configs, API keys, infrastructure access
+</pre>
+        <ul>
+            <li>Level N users can access Level N and all levels BELOW (inheritance).</li>
+            <li>Cache keys embed clearance level: A Level 2 user CAN hit a Level 0 or Level 1 cache entry.</li>
+            <li>A Level 1 user CANNOT hit a Level 2 cache entry — the key strings are cryptographically different.</li>
+        </ul>
+    </div>
+
+    <h2>Section 4: Role-Scoped Cache Key Architecture</h2>
+    <div class="card">
+        <span class="badge">The Formula</span>
+        <p><code>Cache_Key = SHA256(Tenant_ID + Department + 'LEVEL_' + Clearance_Level + Normalized_Query)</code></p>
+
+        <span class="badge">Why this prevents breaches (scenario walkthrough)</span>
+        <ul>
+            <li><strong>Manager (LEVEL_2, DEPT: FINANCE)</strong> asks 'What is the executive bonus structure?'<br>
+                → Key: SHA256('CORP_01:FINANCE:LEVEL_2:executive bonus') → key_999X<br>
+                → Stored in Redis under key_999X</li>
+            <li><strong>Employee (LEVEL_1, DEPT: FINANCE)</strong> asks EXACT same question<br>
+                → Key: SHA256('CORP_01:FINANCE:LEVEL_1:executive bonus') → key_111Y<br>
+                → key_111Y ≠ key_999X → CACHE MISS → Qdrant Pre-Filter blocks Level 2 docs<br>
+                → Employee safely receives 'Access Denied'</li>
+        </ul>
+
+        <span class="badge">Three Cache Security Modes</span>
+        <ul>
+            <li><strong>1. PERMISSION-SET HASH:</strong> Different roles = Different cache namespace (default)</li>
+            <li><strong>2. DOCUMENT ACL CHECK:</strong> Cache write stores source_doc_ids; future users must have access to all source docs</li>
+            <li><strong>3. cacheable: false FLAG:</strong> Sensitive documents tagged to never be written to Redis cache</li>
+        </ul>
+    </div>
+
+    <h2>Section 5: Qdrant Payload Security Schema</h2>
+    <div class="card">
+<pre class="json">
+{
+  "doc_id": "FINANCE_REPORT_Q3_2026",
+  "source_file": "q3_financial_report.pdf",
+  "security_access": {
+    "tenant_id": "CORP_NORTH",
+    "department_id": "FINANCE",
+    "required_clearance": 2,
+    "rbac_roles": ["finance_lead", "executive_admin"]
+  },
+  "version_control": {
+    "file_version": 2,
+    "is_active_version": true,
+    "soft_deleted_at": null
+  },
+  "cacheable": true
+}
+</pre>
+    </div>
+
+    <h2>Section 6: Why Pre-Filtering Beats Post-Filtering (Critical Design Decision)</h2>
+    <div class="card">
+        <ul>
+            <li><strong>POST-FILTERING (WRONG):</strong> Run vector search on ALL 1,000,000 records → Get Top-10 → Strip unauthorized results → May return only 1-2 useful chunks → RAG context is broken</li>
+            <li><strong>PRE-FILTERING (AXIOM STANDARD):</strong> Apply RBAC metadata filter BEFORE cosine similarity → Vector search runs only on authorized subset → Every Top-K result is guaranteed authorized → RAG context is always complete</li>
+        </ul>
+    </div>
+</div>
+</body>
+</html>

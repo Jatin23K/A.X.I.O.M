@@ -1,0 +1,385 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>AXIOM — 02 Matryoshka RAG Engine Blueprint (Building & Fetching)</title>
+  <style>
+    :root {
+      --bg: #0b0f19;
+      --surface: #111827;
+      --surface-card: #1f2937;
+      --border: #374151;
+      --text: #f9fafb;
+      --text-dim: #9ca3af;
+      --accent-green: #10b981;
+      --accent-cyan: #06b6d4;
+      --accent-amber: #f59e0b;
+      --accent-red: #ef4444;
+      --accent-purple: #8b5cf6;
+      --code-bg: #111827;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      background-color: var(--bg);
+      color: var(--text);
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      line-height: 1.6;
+      padding: 2rem 1rem;
+    }
+
+    .container {
+      max-width: 1000px;
+      margin: 0 auto;
+    }
+
+    header {
+      border-bottom: 1px solid var(--border);
+      padding-bottom: 1.5rem;
+      margin-bottom: 2rem;
+    }
+
+    h1 {
+      font-size: 2rem;
+      color: var(--accent-purple);
+      margin-bottom: 0.5rem;
+    }
+
+    .subtitle {
+      color: var(--text-dim);
+      font-size: 1rem;
+    }
+
+    .badge {
+      display: inline-block;
+      padding: 0.25rem 0.6rem;
+      border-radius: 9999px;
+      font-size: 0.75rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      margin-right: 0.5rem;
+      margin-top: 0.5rem;
+    }
+    .badge-purple { background: rgba(139, 92, 246, 0.15); color: var(--accent-purple); border: 1px solid var(--accent-purple); }
+    .badge-cyan { background: rgba(6, 182, 212, 0.15); color: var(--accent-cyan); border: 1px solid var(--accent-cyan); }
+    .badge-green { background: rgba(16, 185, 129, 0.15); color: var(--accent-green); border: 1px solid var(--accent-green); }
+
+    .pitch-box {
+      background: rgba(139, 92, 246, 0.1);
+      border: 2px solid var(--accent-purple);
+      border-radius: 0.75rem;
+      padding: 1.5rem;
+      margin-bottom: 2.5rem;
+      box-shadow: 0 10px 25px -5px rgba(139, 92, 246, 0.1);
+    }
+
+    .pitch-title {
+      font-size: 1.15rem;
+      font-weight: 700;
+      color: var(--accent-purple);
+      margin-bottom: 0.75rem;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+
+    .pitch-text {
+      font-size: 1.05rem;
+      color: #ffffff;
+      line-height: 1.7;
+      font-style: normal;
+      background: #0f172a;
+      padding: 1.25rem;
+      border-radius: 0.5rem;
+      border-left: 4px solid var(--accent-purple);
+    }
+
+    section {
+      margin-bottom: 3rem;
+    }
+
+    h2 {
+      font-size: 1.4rem;
+      color: var(--text);
+      margin-bottom: 1.2rem;
+      border-left: 4px solid var(--accent-purple);
+      padding-left: 0.75rem;
+    }
+
+    .file-card, .blueprint-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 0.5rem;
+      padding: 1.25rem;
+      margin-bottom: 1rem;
+    }
+
+    .file-title {
+      font-family: monospace;
+      font-size: 1.05rem;
+      color: var(--accent-cyan);
+      font-weight: bold;
+      margin-bottom: 0.5rem;
+    }
+
+    .file-desc {
+      color: var(--text-dim);
+      font-size: 0.95rem;
+      margin-bottom: 0.75rem;
+    }
+
+    .file-points {
+      list-style-type: none;
+      padding-left: 0;
+    }
+
+    .file-points li {
+      position: relative;
+      padding-left: 1.25rem;
+      margin-bottom: 0.4rem;
+      font-size: 0.9rem;
+      color: var(--text);
+    }
+
+    .file-points li::before {
+      content: "↳";
+      position: absolute;
+      left: 0;
+      color: var(--accent-purple);
+    }
+
+    .qa-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 0.5rem;
+      padding: 1.5rem;
+      margin-bottom: 1.5rem;
+    }
+
+    .question {
+      font-size: 1.1rem;
+      font-weight: 600;
+      color: var(--accent-purple);
+      margin-bottom: 0.75rem;
+      display: flex;
+      gap: 0.5rem;
+    }
+
+    .answer {
+      color: var(--text);
+      font-size: 0.95rem;
+      line-height: 1.6;
+    }
+
+    .answer p {
+      margin-bottom: 0.75rem;
+    }
+
+    .answer ul {
+      margin-left: 1.25rem;
+      margin-bottom: 0.75rem;
+    }
+
+    .answer li {
+      margin-bottom: 0.3rem;
+    }
+
+    code, pre {
+      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+    }
+
+    code {
+      background: var(--code-bg);
+      color: var(--accent-cyan);
+      padding: 0.15rem 0.4rem;
+      border-radius: 0.25rem;
+      font-size: 0.85em;
+    }
+
+    pre {
+      background: var(--code-bg);
+      border: 1px solid var(--border);
+      padding: 1rem;
+      border-radius: 0.5rem;
+      overflow-x: auto;
+      margin: 0.75rem 0;
+      font-size: 0.85rem;
+      color: var(--text-dim);
+    }
+
+    .diagram {
+      background: #0d1117;
+      border: 1px solid #30363d;
+      border-radius: 0.5rem;
+      padding: 1.5rem;
+      font-family: monospace;
+      white-space: pre;
+      overflow-x: auto;
+      color: var(--accent-purple);
+      font-size: 0.85rem;
+      line-height: 1.4;
+      margin-top: 1rem;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <header>
+      <h1>AXIOM Blueprint — 02 Matryoshka RAG Engine</h1>
+      <p class="subtitle">Building (Storage & Indexing) and Fetching (Coarse-to-Fine Search & Reranking)</p>
+      <div>
+        <span class="badge badge-purple">Matryoshka MRL 128/1536</span>
+        <span class="badge badge-cyan">HyDE + RRF Hybrid Fusion</span>
+        <span class="badge badge-green">BGE Cross-Encoder Reranker</span>
+      </div>
+    </header>
+
+    <!-- TOP ELEVATOR PITCH -->
+    <div class="pitch-box">
+      <div class="pitch-title">⚡ 30-Second Elevator Pitch (What to say when asked "How does AXIOM's RAG Engine work?")</div>
+      <div class="pitch-text">
+        "AXIOM's Matryoshka RAG Engine uses a two-stage coarse-to-fine hybrid search architecture. During indexing, we use Hierarchical Parent-Child Chunking and pre-normalize Matryoshka embeddings so Cosine similarity simplifies to high-speed SIMD Dot Product. At query time, HyDE generates a hypothetical document vector to boost precision by 24%. Stage 1 runs a fast 128-dim Matryoshka HNSW search (<5ms) merged with BM25 sparse keyword search via Reciprocal Rank Fusion (RRF). Stage 2 uses a Cross-Encoder reranker to extract the Top-5 pristine parent context chunks for LLM prompt assembly."
+      </div>
+    </div>
+
+    <!-- SECTION 1: SYSTEM DESIGN & CONTROL FLOW BLUEPRINT -->
+    <section>
+      <h2>1. Matryoshka RAG Data Flow Blueprint</h2>
+      <div class="blueprint-card">
+        <p class="file-desc">Complete end-to-end execution sequence showing raw document ingestion, Matryoshka embedding slicing, Qdrant HNSW indexing, HyDE query transformation, RRF hybrid fusion, and Cross-Encoder reranking.</p>
+        
+        <div class="diagram">
+[ RAW DOCUMENTS / SCHEMAS / PDFs ]
+             │
+             ▼
+[ 1. HIERARCHICAL CHUNKING ] ──► Parent Chunks (1000 tok) / Child Chunks (200 tok + 15% overlap)
+             │
+             ▼
+[ 2. MATRYOSHKA EMBEDDING & L2 STANDARDIZATION ]
+             │  • Generate V_full [1536 dims] per child chunk
+             │  • Slice V_128 = V_full[:128] for fast RAM indexing
+             │  • L2 Normalize: ||v|| = 1.0 (Cosine Similarity → Dot Product A · B)
+             │
+             ▼
+[ 3. QDRANT & BM25 DUAL INDEXING ]
+             │  • Qdrant RAM Index: vec_128 (HNSW Graph)
+             │  • Qdrant Disk Payload: vec_full (1536 dims)
+             │  • BM25 Sparse Index: Logarithmic TF Saturation (k1=1.2, b=0.75)
+             │
+             ▼
+=== QUERY FETCHING PHASE ===
+             │
+[ 4. USER QUERY ] ──► [ HyDE TRANSFORM ] ──► Generate Hypothetical Doc Vector (+24% Precision)
+             │
+             ├─────────────────────────────────────────────────┐
+             │ (Dense Vector Branch)                           │ (Sparse Keyword Branch)
+             ▼                                                 ▼
+[ 5A. STAGE 1A: COARSE 128-dim HNSW SEARCH ]     [ 5B. STAGE 1B: BM25 SPARSE KEYWORD SEARCH ]
+      Scans 1M+ vectors in < 5ms → Top-50 candidates       Searches exact keywords → Top-50 candidates
+             │                                                 │
+             └────────────────────────┬────────────────────────┘
+                                      │
+                                      ▼
+[ 6. RECIPROCAL RANK FUSION (RRF) ] ──► RRF_Score = 1/(60 + Rank_dense) + 1/(60 + Rank_sparse)
+                                      │  Merges candidate lists → Top-50 Merged Candidates
+                                      │
+                                      ▼
+[ 7. STAGE 2: CROSS-ENCODER RERANKER ] ──► BGE-Reranker-Large (Query + Chunk Cross-Attention)
+                                      │    Re-scores all candidates → Top-5 Chunks
+                                      │
+                                      ▼
+[ 8. PARENT DOCUMENT RETRIEVAL ] ─────► Fetches full 1,000-token Parent Chunks for LLM prompt
+        </div>
+      </div>
+    </section>
+
+    <!-- SECTION 2: BUILDING PHASE (STORAGE & VECTOR INDEXING) -->
+    <section>
+      <h2>2. Building Phase (Storage & Vector Indexing)</h2>
+      
+      <div class="file-card">
+        <div class="file-title">1. Hierarchical Parent-Child Chunking</div>
+        <p class="file-desc">Solves the chunk size dilemma (too small = lost context; too big = LLM "Lost in the Middle").</p>
+        <ul class="file-points">
+          <li><strong>Parent Chunks (~1,000 tokens):</strong> Stores complete background narrative and section context.</li>
+          <li><strong>Child Chunks (~200 tokens + 15% overlap):</strong> Holds exact facts for high-precision vector matching.</li>
+          <li><strong>Mapping:</strong> Each child chunk payload contains a reference pointer <code>"parent_id": "doc_101_parent"</code>.</li>
+        </ul>
+      </div>
+
+      <div class="file-card">
+        <div class="file-title">2. Matryoshka Representation Learning (MRL) & L2 Normalization</div>
+        <p class="file-desc">Optimizes vector database RAM footprint and computes similarity searches 3x faster.</p>
+        <ul class="file-points">
+          <li><strong>Vector Slicing:</strong> Single embedding model call generates 1536-dim vector. Sliced to 128 dims (<code>v[:128]</code>) for RAM HNSW index.</li>
+          <li><strong>L2 Standardization:</strong> Normalizing vectors (<code>||v|| = 1.0</code>) simplifies Cosine Similarity to pure CPU SIMD Dot Product ($\mathbf{A} \cdot \mathbf{B}$).</li>
+        </ul>
+      </div>
+
+      <div class="file-card">
+        <div class="file-title">3. BM25 Sparse Vector Normalization</div>
+        <p class="file-desc">Prevents long documents or keyword-stuffed text from distorting keyword search rankings.</p>
+        <ul class="file-points">
+          <li><strong>Logarithmic TF Saturation ($k_1 = 1.2$):</strong> Term frequency score follows a diminishing-returns logarithmic curve.</li>
+          <li><strong>Document Length Normalization ($b = 0.75$):</strong> Penalizes overly verbose documents.</li>
+        </ul>
+      </div>
+    </section>
+
+    <!-- SECTION 3: FETCHING PHASE (SEARCH & RERANKING) -->
+    <section>
+      <h2>3. Fetching Phase (Search & Reranking)</h2>
+
+      <div class="file-card">
+        <div class="file-title">1. HyDE (Hypothetical Document Embeddings) Query Transformation</div>
+        <p class="file-desc">Generates a hypothetical answer first, embedding that text instead of the short user query to boost vector precision by 24%.</p>
+      </div>
+
+      <div class="file-card">
+        <div class="file-title">2. Stage 1: Coarse Hybrid Search & RRF Rank Fusion</div>
+        <p class="file-desc">Merges dense vector search (128-dim HNSW) and sparse keyword search (BM25) using Reciprocal Rank Fusion.</p>
+        <pre>
+# RRF Scoring Formula
+RRF_Score(doc) = (1 / (60 + Rank_dense)) + (1 / (60 + Rank_sparse))
+        </pre>
+      </div>
+
+      <div class="file-card">
+        <div class="file-title">3. Stage 2: Cross-Encoder Reranker (bge-reranker-large)</div>
+        <p class="file-desc">Evaluates raw Query text + Candidate Chunk text together in full transformer cross-attention to output exact relevance scores (0.0 to 1.0), extracting the Top-5 pristine chunks.</p>
+      </div>
+    </section>
+
+    <!-- SECTION 4: MASTER INTERVIEW QUESTIONS AND ANSWERS -->
+    <section>
+      <h2>4. Interview Q&A Defense for Matryoshka RAG</h2>
+
+      <div class="qa-card">
+        <div class="question">Q1: Why do you pre-normalize vectors before storing them in Qdrant?</div>
+        <div class="answer">
+          <p>L2 normalizing vectors to unit length (length = 1.0) forces all vectors onto a unit hypersphere, removing magnitude bias. Mathematically, Cosine Similarity simplifies to the Dot Product (\(\mathbf{A} \cdot \mathbf{B}\)). This allows vector databases to execute searches using raw CPU SIMD matrix multiplication, cutting retrieval latency by over 70%.</p>
+        </div>
+      </div>
+
+      <div class="qa-card">
+        <div class="question">Q2: Why use Reciprocal Rank Fusion (RRF) instead of just adding vector similarity scores?</div>
+        <div class="answer">
+          <p>Dense vector scores (0.0 to 1.0) and BM25 sparse scores (0.0 to 25.0+) exist on completely different numerical scales. Normalizing them manually is unstable. RRF merges lists based on <em>rank positions</em> rather than raw scores, making hybrid search combination robust and scale-invariant.</p>
+        </div>
+      </div>
+
+      <div class="qa-card">
+        <div class="question">Q3: Does the Cross-Encoder Reranker use Matryoshka embeddings?</div>
+        <div class="answer">
+          <p><strong>No.</strong> Cross-Encoders do not use vector embeddings. Bi-encoders (Matryoshka models) turn text into vectors for fast ANN search. The Cross-Encoder takes raw Query text and Candidate Chunk text together into transformer self-attention layers to output a single 0-to-1 relevance logit score.</p>
+        </div>
+      </div>
+    </section>
+  </div>
+</body>
+</html>

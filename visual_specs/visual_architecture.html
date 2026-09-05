@@ -1,0 +1,472 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>A.X.I.O.M — Visual System Architecture (Building, Retrieval & Management)</title>
+  <style>
+    :root {
+      --bg: #0b0f19;
+      --surface: #111827;
+      --surface-card: #1f2937;
+      --border: #374151;
+      --text: #f9fafb;
+      --text-dim: #9ca3af;
+      --accent-green: #10b981;
+      --accent-cyan: #06b6d4;
+      --accent-amber: #f59e0b;
+      --accent-red: #ef4444;
+      --accent-purple: #8b5cf6;
+      --code-bg: #0d1117;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      background-color: var(--bg);
+      color: var(--text);
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      line-height: 1.6;
+      padding: 2rem 1rem;
+    }
+
+    .container {
+      max-width: 1100px;
+      margin: 0 auto;
+    }
+
+    header {
+      border-bottom: 1px solid var(--border);
+      padding-bottom: 1.5rem;
+      margin-bottom: 2.5rem;
+    }
+
+    h1 {
+      font-size: 2.2rem;
+      color: var(--accent-cyan);
+      margin-bottom: 0.5rem;
+      letter-spacing: -0.02em;
+    }
+
+    .subtitle {
+      color: var(--text-dim);
+      font-size: 1.05rem;
+    }
+
+    .badge {
+      display: inline-block;
+      padding: 0.25rem 0.65rem;
+      border-radius: 9999px;
+      font-size: 0.75rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      margin-right: 0.5rem;
+      margin-top: 0.75rem;
+    }
+    .badge-cyan { background: rgba(6, 182, 212, 0.15); color: var(--accent-cyan); border: 1px solid var(--accent-cyan); }
+    .badge-green { background: rgba(16, 185, 129, 0.15); color: var(--accent-green); border: 1px solid var(--accent-green); }
+    .badge-amber { background: rgba(245, 158, 11, 0.15); color: var(--accent-amber); border: 1px solid var(--accent-amber); }
+    .badge-purple { background: rgba(139, 92, 246, 0.15); color: var(--accent-purple); border: 1px solid var(--accent-purple); }
+
+    .nav-bar {
+      display: flex;
+      gap: 1rem;
+      margin-bottom: 2.5rem;
+      background: var(--surface);
+      padding: 0.75rem;
+      border-radius: 0.75rem;
+      border: 1px solid var(--border);
+    }
+
+    .nav-btn {
+      flex: 1;
+      padding: 0.75rem;
+      text-align: center;
+      background: var(--surface-card);
+      color: var(--text);
+      text-decoration: none;
+      font-weight: 600;
+      border-radius: 0.5rem;
+      border: 1px solid var(--border);
+      transition: all 0.2s ease;
+      font-size: 0.95rem;
+    }
+
+    .nav-btn:hover {
+      border-color: var(--accent-cyan);
+      color: var(--accent-cyan);
+    }
+
+    section {
+      margin-bottom: 4rem;
+      scroll-margin-top: 2rem;
+    }
+
+    .section-header {
+      display: flex;
+      align-items: center;
+      gap: 1rem;
+      margin-bottom: 1.5rem;
+    }
+
+    .section-number {
+      background: var(--surface-card);
+      border: 2px solid var(--accent-cyan);
+      color: var(--accent-cyan);
+      width: 42px;
+      height: 42px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: bold;
+      font-size: 1.2rem;
+    }
+
+    .section-number-green { border-color: var(--accent-green); color: var(--accent-green); }
+    .section-number-amber { border-color: var(--accent-amber); color: var(--accent-amber); }
+
+    h2 {
+      font-size: 1.6rem;
+      color: var(--text);
+    }
+
+    .diagram-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 0.75rem;
+      padding: 1.75rem;
+      box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+      margin-bottom: 1.5rem;
+    }
+
+    .diagram-title {
+      font-size: 1.1rem;
+      font-weight: 700;
+      margin-bottom: 0.5rem;
+      color: var(--accent-cyan);
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+    .diagram-title-green { color: var(--accent-green); }
+    .diagram-title-amber { color: var(--accent-amber); }
+
+    .diagram-desc {
+      color: var(--text-dim);
+      font-size: 0.95rem;
+      margin-bottom: 1.25rem;
+    }
+
+    .ascii-box {
+      background: var(--code-bg);
+      border: 1px solid #30363d;
+      border-radius: 0.5rem;
+      padding: 1.5rem;
+      font-family: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
+      white-space: pre;
+      overflow-x: auto;
+      font-size: 0.85rem;
+      line-height: 1.45;
+      color: #e6edf3;
+    }
+
+    .c-cyan { color: var(--accent-cyan); font-weight: bold; }
+    .c-green { color: var(--accent-green); font-weight: bold; }
+    .c-amber { color: var(--accent-amber); font-weight: bold; }
+    .c-purple { color: var(--accent-purple); font-weight: bold; }
+    .c-red { color: var(--accent-red); font-weight: bold; }
+    .c-dim { color: var(--text-dim); }
+
+    .highlights-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+      gap: 1rem;
+      margin-top: 1.25rem;
+    }
+
+    .mini-card {
+      background: var(--surface-card);
+      border: 1px solid var(--border);
+      border-radius: 0.5rem;
+      padding: 1rem;
+    }
+
+    .mini-card-title {
+      font-weight: 600;
+      font-size: 0.95rem;
+      margin-bottom: 0.4rem;
+    }
+
+    .mini-card-body {
+      font-size: 0.85rem;
+      color: var(--text-dim);
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <header>
+      <h1>A.X.I.O.M. Architecture Visualizer</h1>
+      <p class="subtitle">Complete 3-Stage Visual Diagrams: System Building, Retrieval Sequence, and Ingestion Management</p>
+      <div>
+        <span class="badge badge-cyan">01. Building</span>
+        <span class="badge badge-green">02. Retrieval</span>
+        <span class="badge badge-amber">03. Management</span>
+        <span class="badge badge-purple">Enterprise RAG Spec</span>
+      </div>
+    </header>
+
+    <!-- NAVIGATION BAR -->
+    <div class="nav-bar">
+      <a href="#building" class="nav-btn">1. BUILDING (What We Build)</a>
+      <a href="#retrieval" class="nav-btn">2. RETRIEVAL (How It Fetches)</a>
+      <a href="#management" class="nav-btn">3. MANAGEMENT (How RAG Updates)</a>
+    </div>
+
+    <!-- ========================================== -->
+    <!-- DIAGRAM 1: BUILDING (WHAT WE BUILD)       -->
+    <!-- ========================================== -->
+    <section id="building">
+      <div class="section-header">
+        <div class="section-number">1</div>
+        <div>
+          <h2>BUILDING — What We Build (System Topology & Modalities)</h2>
+          <p class="subtitle">The multi-modal architecture supporting Text, ColPali Visual Images, Dual-Path Audio, and 3-Stream Video</p>
+        </div>
+      </div>
+
+      <div class="diagram-card">
+        <div class="diagram-title">🏗️ Master System Topology & Multi-Modal Infrastructure</div>
+        <div class="diagram-desc">Single unified vector engine (Qdrant) storing all 4 modalities via Named Vector Fields, backed by a 2-Tier Redis Cache and API Gateway security.</div>
+        
+        <div class="ascii-box">
+<span class="c-cyan">┌────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┐
+│                                       A.X.I.O.M. MULTI-MODAL SYSTEM INFRASTRUCTURE                                     │
+└────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┘</span>
+
+  <span class="c-purple">[ MODALITY 1: TEXT ]</span>         <span class="c-cyan">[ MODALITY 2: IMAGE ]</span>         <span class="c-green">[ MODALITY 3: AUDIO ]</span>        <span class="c-amber">[ MODALITY 4: VIDEO ]</span>
+  ──────────────────         ───────────────────         ─────────────────────        ────────────────────
+  • Documents / Notes        • ColPali PDF Pages         • Podcasts / Calls           • Lectures / Security
+  • Sentence Chunking        • 32x32 ViT Patch Grid      • WhisperX Timestamp STT     • PySceneDetect Keyframes
+  • Matryoshka 128d Slice    • 1,024 Vectors / Page      • CLAP Mel-Spectrogram       • WhisperX STT + CLAP Sound
+  • Sparse BM25 + HNSW       • Zero OCR Parsing          • VAD Silence 10s-45s        • 3-Stream Sync Window
+           │                          │                            │                            │
+           └──────────────────────────┼────────────────────────────┼────────────────────────────┘
+                                      ▼
+<span class="c-purple">┌────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┐
+│                                    SINGLE UNIFIED VECTOR DB ENGINE (QDRANT)                                             │
+│  Payload Collections with Named Vector Fields:                                                                         │
+│  • Sparse (BM25)  ·  Dense (1536d)  ·  ColPali Patch Array [1024x128d]  ·  V_speech  ·  V_acoustic  ·  V_visual       │
+└───────────────────────────────────────────┬────────────────────────────────────────────────────────────────────────────┘</span>
+                                            ▲
+                                            │ Named Vector Read/Write
+<span class="c-cyan">┌───────────────────────────────────────────┴────────────────────────────────────────────────────────────────────────────┐
+│                                       IN-MEMORY 2-TIER REDIS CACHE STACK                                               │
+│  • Tier 0: SHA-256 Exact Hash (<1ms)  ·  Image pHash (≤4)  ·  Audio Chromaprint                                         │
+│  • Tier 1: Matryoshka 128d Semantic Vector Cache (Cosine ≥ 0.92, ~15ms)                                               │
+│  • Role-Scoped Cache Key Isolation: SHA256(Tenant_ID + Department + "LEVEL_" + Clearance + Query)                      │
+└───────────────────────────────────────────┬────────────────────────────────────────────────────────────────────────────┘</span>
+                                            ▲
+                                            │ Authenticated & Filtered Traffic
+<span class="c-green">┌───────────────────────────────────────────┴────────────────────────────────────────────────────────────────────────────┐
+│                                  SECURITY INGRESS & API GATEWAY LAYER                                                  │
+│  • JWT Auth Verification (<0.5ms)  ·  JWKS RAM Key Validation  ·  2-Checkpoint RBAC Enforcement                        │
+└────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┘</span>
+        </div>
+
+        <div class="highlights-grid">
+          <div class="mini-card">
+            <div class="mini-card-title c-purple">Text Modality</div>
+            <div class="mini-card-body">Matryoshka 128d vector slice for fast filtering + BM25/HNSW RRF hybrid search + Cross-Encoder reranker.</div>
+          </div>
+          <div class="mini-card">
+            <div class="mini-card-title c-cyan">Image Modality (ColPali)</div>
+            <div class="mini-card-body">Zero-OCR raw image patching (32x32 grid). ColBERT MaxSim late interaction eliminates need for Re-rankers.</div>
+          </div>
+          <div class="mini-card">
+            <div class="mini-card-title c-green">Audio Modality (Dual-Path)</div>
+            <div class="mini-card-body">WhisperX STT for spoken words (V_speech) + CLAP Mel-Spectrogram for non-speech sound/tone (V_acoustic).</div>
+          </div>
+          <div class="mini-card">
+            <div class="mini-card-title c-amber">Video Modality (3-Stream)</div>
+            <div class="mini-card-body">OpenCV scene-cut keyframe extraction (V_visual) + WhisperX (V_speech) + CLAP (V_acoustic) bound to time window.</div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+
+    <!-- ========================================== -->
+    <!-- DIAGRAM 2: RETRIEVAL (HOW IT FETCHES)      -->
+    <!-- ========================================== -->
+    <section id="retrieval">
+      <div class="section-header">
+        <div class="section-number section-number-green">2</div>
+        <div>
+          <h2>RETRIEVAL — How Things Are Retrieved (The Read Side Sequence)</h2>
+          <p class="subtitle">The complete 11-stage synchronous query execution path from HTTP Request to Grounded Citation Response</p>
+        </div>
+      </div>
+
+      <div class="diagram-card">
+        <div class="diagram-title diagram-title-green">⚡ Synchronous Retrieval Execution Flow & Security Checkpoints</div>
+        <div class="diagram-desc">Every request passes through strict latency budgets, 2-Checkpoint security, Role-Scoped Caching, and Output Groundedness checks.</div>
+        
+        <div class="ascii-box">
+<span class="c-green">USER HTTP REQUEST (Header: Bearer JWT  |  Body: Query Text/Image)</span>
+   │
+   ▼
+[ <span class="c-cyan">1. API GATEWAY: JWT AUTHENTICATION (<0.5ms)</span> ] ──► (Invalid/Expired) ──► <span class="c-red">REJECT (HTTP 401 Unauthorized)</span>
+   │  Decodes JWT → Extracts Tenant_ID, Department, Clearance_Level
+   │  Computes Permission_Hash = SHA256(Tenant + Dept + Clearance)
+   ▼ (Valid Token)
+[ <span class="c-cyan">2. INPUT GUARDRAILS (<5ms)</span> ] ─────────────────► (PII/Prompt Attack) ──► <span class="c-red">REJECT (HTTP 400 Bad Request)</span>
+   │  Sanitizes input text, checks SQLi & prompt injection vectors
+   ▼ (Clean Query)
+[ <span class="c-green">3. ROLE-SCOPED CACHE CHECK (<15ms)</span> ] ─────────► <span class="c-green">[ CACHE HIT ] ────────► RETURN CACHED RESPONSE (<15ms)</span>
+   │  Key: SHA256(Tenant + Dept + "LEVEL_" + Clearance + Query)                  <span class="c-dim">(Bypasses Vector DB & LLM!)</span>
+   │  Tier 0 Exact Hash → Tier 1 Redis Vector Match (≥0.92)
+   ▼ (CACHE MISS)
+[ <span class="c-amber">4. CHECKPOINT 2: QDRANT PRE-FILTERING (<20ms)</span> ]
+   │  Applies Payload Filters BEFORE Vector Distance Math:
+   │  <span class="c-amber">MUST MATCH: tenant_id == User_Tenant AND required_clearance <= User_Clearance</span>
+   │  <span class="c-amber">AND is_active_version == true AND department_id == User_Dept</span>
+   ▼
+[ <span class="c-purple">5. MODALITY ROUTER & VECTOR SEARCH</span> ]
+   ├──► TEXT: Matryoshka 1536d → BM25+HNSW RRF → Cross-Encoder
+   ├──► IMAGE: CLIP Query → ColPali Patch Array → MaxSim Late Interaction
+   ├──► AUDIO: WhisperX STT + CLAP → Dual-Vector Weighted Search
+   └──► VIDEO: PySceneDetect Keyframes + WhisperX + CLAP → 3-Stream Search
+   ▼
+[ <span class="c-cyan">6. DEPARTMENT MODEL ROUTER</span> ]
+   ├──► HR / Support      ──► Gemini 2.5 Flash-Lite  (<300ms,  $0.0001/query)
+   ├──► Engineering       ──► Gemini 2.5 Flash       (<800ms,  $0.0010/query)
+   └──► Legal / Finance   ──► Gemini 2.5 Pro         (<2500ms, $0.0200/query)
+   ▼
+[ <span class="c-amber">7. LLM / VLM GENERATION (Wrapped by API Circuit Breaker)</span> ]
+   │  Enforces 8,000 Token Context SLA Budget
+   │  Circuit Breaker: HTTP 429 → Key Rotation → Downgrade to Flash → Local Ollama
+   ▼
+[ <span class="c-red">8. OUTPUT GUARDRAILS & SAFE FAILURE CHECK</span> ]
+   │  Context Relevance < 0.40 ──► <span class="c-amber">SAFE FAILURE: Return Knowledge Gap Message (No Guessing!)</span>
+   │  Groundedness < 1.00     ──► <span class="c-amber">Strip Unbacked Claims + Flag Hallucination</span>
+   │  Verbatim Citation Mapping: Injects [Ref X] tags linked to exact Page/Timestamp
+   ▼
+[ <span class="c-green">9. CACHE WRITE & RESPONSE SERVING</span> ] ──► Write response to Redis under Role-Scoped Key
+   │                                     Log trace_id to OpenTelemetry asynchronously
+   ▼
+<span class="c-green">SERVE GROUNDED RESPONSE WITH VERBATIM [REF X] CITATIONS & SOURCE LINKS TO USER</span>
+        </div>
+
+        <div class="highlights-grid">
+          <div class="mini-card">
+            <div class="mini-card-title c-cyan">Checkpoint 1: API Gateway</div>
+            <div class="mini-card-body">Validates JWT signature & expiration in &lt;0.5ms. Blocks unauthorized routes before touching backend.</div>
+          </div>
+          <div class="mini-card">
+            <div class="mini-card-title c-green">Role-Scoped Cache Keys</div>
+            <div class="mini-card-body">Key = SHA256(Tenant + Dept + Clearance + Query). Ensures Lower Roles can NEVER hit Higher Role caches.</div>
+          </div>
+          <div class="mini-card">
+            <div class="mini-card-title c-amber">Checkpoint 2: Pre-Filtering</div>
+            <div class="mini-card-body">Filters Qdrant payload BEFORE vector distance math. Guarantees 100% of retrieved chunks are authorized.</div>
+          </div>
+          <div class="mini-card">
+            <div class="mini-card-title c-purple">Safe Failure Contract</div>
+            <div class="mini-card-body">If Context Relevance &lt; 0.40, the LLM refuses gracefully instead of hallucinating fake answers.</div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+
+    <!-- ========================================== -->
+    <!-- DIAGRAM 3: MANAGEMENT (HOW RAG UPDATES)    -->
+    <!-- ========================================== -->
+    <section id="management">
+      <div class="section-header">
+        <div class="section-number section-number-amber">3</div>
+        <div>
+          <h2>MANAGEMENT — How RAG Is Managed (The Write Side CQRS Pipeline)</h2>
+          <p class="subtitle">Asynchronous ETL ingestion, Department-Level Retention Policies, Soft-Delete Versioning, and GDPR Hard Purging</p>
+        </div>
+      </div>
+
+      <div class="diagram-card">
+        <div class="diagram-title diagram-title-amber">⚙️ Async Ingestion, Stale Index Purge & Version Control Pipeline</div>
+        <div class="diagram-desc">The out-of-band write architecture that processes heavy files, updates indices, and invalidates stale caches without blocking live user queries.</div>
+        
+        <div class="ascii-box">
+<span class="c-amber">ADMIN / SYSTEM EVENT: Upload File (PDF/Video/WAV) · Edit Document · Delete Record</span>
+   │
+   ▼
+[ <span class="c-cyan">1. API INGRESS & TASK CREATION (<1ms)</span> ]
+   │  Validates Admin Auth → Generates Task_ID (#9042)
+   │  <span class="c-green">Instantly returns HTTP 202 Accepted (Admin UI NEVER freezes!)</span>
+   ▼
+[ <span class="c-purple">2. ASYNC TASK QUEUE (CELERY / REDIS QUEUE)</span> ]
+   │  Celery Worker picks up Task_ID #9042 from queue
+   ▼
+[ <span class="c-amber">3. EXTRACT PHASE (Modality Parsers)</span> ]
+   ├──► PDF / IMAGE ──► Render 1024x1024 Page Images (ColPali) + Visual OCR
+   ├──► AUDIO       ──► Voice Activity Detection (VAD) + WhisperX STT + CLAP
+   └──► VIDEO       ──► PySceneDetect Keyframe Extraction + WhisperX + CLAP
+   ▼
+[ <span class="c-cyan">4. TRANSFORM PHASE (Embedding & Chunking)</span> ]
+   │  Text: Matryoshka 128d Slicing + 1536d Full Vectors
+   │  Image: ColPali 32x32 ViT Patch Vector Matrices [1024x128d]
+   │  Audio/Video: V_speech + V_acoustic + V_visual Temporal Synchronization
+   ▼
+[ <span class="c-red">5. STALE INDEX PURGE & DEPARTMENT RETENTION POLICY</span> ]
+   │  Reads Metadata: department_id (HR vs Legal vs Engineering)
+   │
+   ├──► <span class="c-amber">STRATEGY: SOFT_DELETE_PREVIOUS (HR / Operations)</span>
+   │    • Old v1 Vectors in Qdrant: <span class="c-red">SET is_active_version = false</span>
+   │    • Record soft_deleted_at timestamp
+   │    • Ingest new v2 Vectors: <span class="c-green">SET is_active_version = true</span>
+   │
+   └──► <span class="c-purple">STRATEGY: MULTI_VERSION_COEXISTENCE (Legal / Engineering)</span>
+        • Both v1 and v2 Vectors remain: <span class="c-green">is_active_version = true</span>
+        • Tagged with version_tag ("v1.0" vs "v2.0") for comparative audit queries
+   ▼
+[ <span class="c-red">6. REDIS CACHE INVALIDATION</span> ]
+   │  Publishes Cache Pattern Invalidation: <span class="c-red">DEL CACHE:*:DOC_ID:*</span>
+   │  Purges matching stale cached answers across all role namespaces
+   ▼
+[ <span class="c-green">7. LOAD PHASE (Qdrant Payload Write)</span> ]
+   │  Writes new active vector records with full security & version payload
+   ▼
+[ <span class="c-dim">8. GARBAGE COLLECTION & GDPR HARD PURGE (Background CRON)</span> ]
+   ├──► 30-Day Retention Bin: <span class="c-red">HARD PURGE vectors where is_active_version == false AND age > 30 Days</span>
+   └──► GDPR Erasure Request: <span class="c-red">Instant hard delete across S3 Raw Files, Redis RAM, & Qdrant DB</span>
+        </div>
+
+        <div class="highlights-grid">
+          <div class="mini-card">
+            <div class="mini-card-title c-cyan">CQRS Architecture</div>
+            <div class="mini-card-body">Write side runs asynchronously in Celery background queues. Ingesting 4-hour videos never slows live user queries.</div>
+          </div>
+          <div class="mini-card">
+            <div class="mini-card-title c-amber">Soft-Delete Versioning</div>
+            <div class="mini-card-body">v1 vectors marked is_active_version = false. Enables 1-second rollbacks & historical audit queries.</div>
+          </div>
+          <div class="mini-card">
+            <div class="mini-card-title c-purple">Department Retention Map</div>
+            <div class="mini-card-body">HR soft-deletes old policies. Legal/Engineering maintains multi-version coexistence for contracts & API docs.</div>
+          </div>
+          <div class="mini-card">
+            <div class="mini-card-title c-red">Cache Pattern Invalidation</div>
+            <div class="mini-card-body">Updating a document flushes matching Redis keys (DEL CACHE:*:DOC_ID:*), guaranteeing zero stale responses.</div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <footer style="text-align: center; border-top: 1px solid var(--border); padding-top: 2rem; color: var(--text-dim); font-size: 0.9rem;">
+      A.X.I.O.M. Adaptive eXtended Intelligence & Omnimodal Memory — Master Architecture Specification for C.O.R.E.
+    </footer>
+  </div>
+</body>
+</html>
